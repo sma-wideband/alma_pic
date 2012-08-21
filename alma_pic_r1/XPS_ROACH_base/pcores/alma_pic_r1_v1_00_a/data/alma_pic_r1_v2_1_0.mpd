@@ -1,0 +1,55 @@
+#############################################################################
+##
+## IP Name  : alma_pic_r1
+## Desc     : Automatically generated IP core wrapping a
+##            Simulink Xilinx System Generator netlist.
+##            Please do not modify by hand, this file will be erased
+##
+#############################################################################
+
+BEGIN alma_pic_r1
+
+###################
+# Generic Options #
+###################
+OPTION IPTYPE = IP
+OPTION STYLE  = BLACKBOX
+
+###################
+# Clock port      #
+###################
+PORT clk = "", DIR = I, SIGIS = CLK, CLK_FREQ = 100000000
+
+###################
+# Interfaces      #
+###################
+
+# alma_pic_r1/XSG core config
+
+# alma_pic_r1/reg_in
+PORT alma_pic_r1_reg_in_user_data_out = "", DIR = in, VEC = [31:0]
+
+# alma_pic_r1/reg_out
+PORT alma_pic_r1_reg_out_user_data_in = "", DIR = out, VEC = [31:0]
+
+# alma_pic_r1/ten_GbE
+PORT alma_pic_r1_ten_GbE_led_rx = "", DIR = in
+PORT alma_pic_r1_ten_GbE_led_tx = "", DIR = in
+PORT alma_pic_r1_ten_GbE_led_up = "", DIR = in
+PORT alma_pic_r1_ten_GbE_rx_data = "", DIR = in, VEC = [63:0]
+PORT alma_pic_r1_ten_GbE_rx_end_of_frame = "", DIR = in
+PORT alma_pic_r1_ten_GbE_rx_size = "", DIR = in, VEC = [15:0]
+PORT alma_pic_r1_ten_GbE_rx_source_ip = "", DIR = in, VEC = [31:0]
+PORT alma_pic_r1_ten_GbE_rx_source_port = "", DIR = in, VEC = [15:0]
+PORT alma_pic_r1_ten_GbE_rx_valid = "", DIR = in
+PORT alma_pic_r1_ten_GbE_tx_ack = "", DIR = in
+PORT alma_pic_r1_ten_GbE_rst = "", DIR = out
+PORT alma_pic_r1_ten_GbE_rx_ack = "", DIR = out
+PORT alma_pic_r1_ten_GbE_tx_data = "", DIR = out, VEC = [63:0]
+PORT alma_pic_r1_ten_GbE_tx_dest_ip = "", DIR = out, VEC = [31:0]
+PORT alma_pic_r1_ten_GbE_tx_dest_port = "", DIR = out, VEC = [15:0]
+PORT alma_pic_r1_ten_GbE_tx_discard = "", DIR = out
+PORT alma_pic_r1_ten_GbE_tx_end_of_frame = "", DIR = out
+PORT alma_pic_r1_ten_GbE_tx_valid = "", DIR = out
+
+END

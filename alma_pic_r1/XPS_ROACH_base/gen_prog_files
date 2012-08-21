@@ -1,0 +1,5 @@
+#!/bin/bash
+cp implementation/system.bit ../bit_files/alma_pic_r1_2012_Aug_21_1003.bit
+./mkbof -o implementation/system.bof -s core_info.tab -t 3 implementation/system.bin
+chmod +x implementation/system.bof
+cp implementation/system.bof ../bit_files/alma_pic_r1_2012_Aug_21_1003.bof
