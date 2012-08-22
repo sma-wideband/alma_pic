@@ -19,7 +19,7 @@ entity opb_vdif_interface is
     REV_MAJOR_FRAC  :   std_logic_vector(7 downto 0) := x"00";   -- major revision, fractional part
     P_TYPE          :   std_logic_vector(7 downto 0) := x"83";   -- personality type
     ADDRHI      : std_logic_vector(18 downto 12) := "0000000";
-    nch         : integer range 0 to 7      -- number of channels synthesized
+    nch         : integer range 0 to 7 := 4      -- number of channels synthesized
    );
     port
     (
@@ -40,6 +40,10 @@ entity opb_vdif_interface is
       OPB_seqAddr : in std_logic;
 
       -- other ports
+      clk_in_p        : in std_logic;
+      clk_in_n        : in std_logic;
+      sum_in_p        : in std_logic_vector(63 downto 0);
+      sum_in_n        : in std_logic_vector(63 downto 0);
       adc_clk         : in std_logic;
       OnePPS          : in std_logic;
       DataRdy         : in std_logic_vector(nch-1 downto 0);
@@ -94,6 +98,18 @@ is
         );
 
     end component vdif_formatter;
+
+    component vdif_data
+      generic (
+        SAMPLES_IN : integer);          -- samples in
+      port (
+        clk_p      : in  std_logic;
+        clk_n      : in  std_logic;
+        sum_data_p : in  std_logic_vector(63 downto 0);
+        sum_data_n : in  std_logic_vector(63 downto 0);
+        clk_out    : out std_logic;
+        data_out   : out std_logic_vector(63 downto 0));
+    end component;
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
     -- maximum number of channels that can be used. Initially set to 7.
@@ -237,6 +253,15 @@ end record HdrArray;
     signal IntDelay         : std_logic_vector(15 downto 0);
     signal ppsFinish        : std_logic;
 
+    -- data capture signals
+    signal clk_p       : std_logic;
+    signal clk_n       : std_logic;
+    signal sum_data_p  : std_logic_vector(63 downto 0);
+    signal sum_data_n  : std_logic_vector(63 downto 0);
+    signal clk_out     : std_logic;
+    signal sum_out    : std_logic_vector(63 downto 0);
+
+
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 begin
@@ -245,6 +270,12 @@ begin
 
   -- connect clocks
   epb_clk <= OPB_Clk;
+  clk_p <= clk_in_p;
+  clk_n <= clk_in_n;
+
+  -- connect differential data lines
+  sum_data_p <= sum_in_p;
+  sum_data_n <= sum_in_n;
 
   -- connect OPB signals
   DeviceAddr       <= OPB_ABus(0 to 18);
@@ -810,6 +841,24 @@ CurrData <= data_out(currCh);
             To10GbeTxData       => To10GbeTxData,   --: out slv(63 downto 0);
             To10GbeTxDataValid  => To10GbeTxDataValid,  --: out std_logic;
             To10GbeTxEOF        => To10GbeTxEOF --: out std_logic
+        );
+
+
+-------------------------------------------------------------------------------
+--Data capture
+
+    --synchronously capture incoming differential data
+    data_capt : vdif_data
+      generic map (
+        SAMPLES_IN => 32)
+      port map
+      (
+        clk_p      => clk_p,
+        clk_n      => clk_n,
+        sum_data_p => sum_data_p,
+        sum_data_n => sum_data_n,
+        clk_out    => clk_out,
+        data_out   => sum_out
         );
 
 

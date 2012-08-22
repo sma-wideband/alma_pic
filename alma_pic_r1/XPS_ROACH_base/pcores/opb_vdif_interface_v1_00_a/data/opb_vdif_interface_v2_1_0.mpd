@@ -64,6 +64,10 @@ PARAMETER nch = 0, DT = INTEGER
 	######################################
 	## Core specific ports
 	######################################
+	PORT clk_in_p  = "", DIR = I
+	PORT clk_in_n  = "", DIR = I
+	PORT sum_data_p  = "", DIR = I
+	PORT sum_data_n  = "", DIR = I
 	PORT adc_clk  = "", DIR = I
         PORT OnePPS   = "", DIR = I
         PORT DataRdy  = "", DIR = I, VEC = [0:(nch-1)]

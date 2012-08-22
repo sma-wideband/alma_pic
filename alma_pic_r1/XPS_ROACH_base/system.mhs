@@ -217,6 +217,10 @@ BEGIN opb_vdif_interface
  PARAMETER ADDRHI = 0x00
  PARAMETER nch = 4
  BUS_INTERFACE SOPB = opb0
+ PORT clk_in_p  = vdif_clk_in_p
+ PORT clk_in_n  = vdif_clk_in_n
+ PORT sum_data_p  = vdif_sum_data_p
+ PORT sum_data_n  = vdif_sum_data_n
  PORT adc_clk = sys_clk
  PORT OnePPS = 0b0
  PORT DataRdy = 0b0000
@@ -226,6 +230,11 @@ BEGIN opb_vdif_interface
  PORT To10GbeTxDataValid = alma_pic_r1_ten_GbE_tx_valid
  PORT To10GbeTxEOF = alma_pic_r1_ten_GbE_tx_end_of_frame
 END
+
+PORT vdif_clk_in_p = vdif_clk_in_p, DIR = I, SIGIS = CLK, CLK_FREQ = 125000000
+PORT vdif_clk_in_n = vdif_clk_in_n, DIR = I, SIGIS = CLK, CLK_FREQ = 125000000
+PORT vdif_sum_data_p = vdif_sum_data_p, DIR = I, VEC = [63:0]
+PORT vdif_sum_data_n = vdif_sum_data_n, DIR = I, VEC = [63:0]
 
 # #############################################
 # User XSG IP core                           #
