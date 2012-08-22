@@ -109,7 +109,7 @@ is
         sum_data_n : in  std_logic_vector(63 downto 0);
         clk_out    : out std_logic;
         data_out   : out std_logic_vector(63 downto 0));
-    end component;
+    end component vdif_data;
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
     -- maximum number of channels that can be used. Initially set to 7.
