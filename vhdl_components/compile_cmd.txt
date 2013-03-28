@@ -1,0 +1,5 @@
+ghdl -a --ieee=synopsys -fexplicit sum_data_chk.vhd
+ghdl -a --ieee=synopsys -fexplicit sum_data_chk_tb.vhd
+ghdl -e --ieee=synopsys -fexplicit sum_data_chk_tb
+ghdl -r sum_data_chk_tb --vcd=sum_data_chk.vcd
+gtkwave sum_data_chk.vcd
