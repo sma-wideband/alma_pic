@@ -1,0 +1,60 @@
+#############################################################################
+##
+## IP Name  : alma_pic_r2
+## Desc     : Automatically generated IP core wrapping a
+##            Simulink Xilinx System Generator netlist.
+##            Please do not modify by hand, this file will be erased
+##
+#############################################################################
+
+BEGIN alma_pic_r2
+
+###################
+# Generic Options #
+###################
+OPTION IPTYPE = IP
+OPTION STYLE  = BLACKBOX
+
+###################
+# Clock port      #
+###################
+PORT clk = "", DIR = I, SIGIS = CLK, CLK_FREQ = 100000000
+
+###################
+# Interfaces      #
+###################
+
+# alma_pic_r2/XSG core config
+
+# alma_pic_r2/frm_PPC_0
+PORT alma_pic_r2_frm_PPC_0_user_data_out = "", DIR = in, VEC = [31:0]
+
+# alma_pic_r2/frm_ppc_1
+PORT alma_pic_r2_frm_ppc_1_user_data_out = "", DIR = in, VEC = [31:0]
+
+# alma_pic_r2/ten_Gbe_v2
+PORT alma_pic_r2_ten_Gbe_v2_led_rx = "", DIR = in
+PORT alma_pic_r2_ten_Gbe_v2_led_tx = "", DIR = in
+PORT alma_pic_r2_ten_Gbe_v2_led_up = "", DIR = in
+PORT alma_pic_r2_ten_Gbe_v2_rx_bad_frame = "", DIR = in
+PORT alma_pic_r2_ten_Gbe_v2_rx_data = "", DIR = in, VEC = [63:0]
+PORT alma_pic_r2_ten_Gbe_v2_rx_end_of_frame = "", DIR = in
+PORT alma_pic_r2_ten_Gbe_v2_rx_overrun = "", DIR = in
+PORT alma_pic_r2_ten_Gbe_v2_rx_source_ip = "", DIR = in, VEC = [31:0]
+PORT alma_pic_r2_ten_Gbe_v2_rx_source_port = "", DIR = in, VEC = [15:0]
+PORT alma_pic_r2_ten_Gbe_v2_rx_valid = "", DIR = in
+PORT alma_pic_r2_ten_Gbe_v2_tx_afull = "", DIR = in
+PORT alma_pic_r2_ten_Gbe_v2_tx_overflow = "", DIR = in
+PORT alma_pic_r2_ten_Gbe_v2_rst = "", DIR = out
+PORT alma_pic_r2_ten_Gbe_v2_rx_ack = "", DIR = out
+PORT alma_pic_r2_ten_Gbe_v2_rx_overrun_ack = "", DIR = out
+PORT alma_pic_r2_ten_Gbe_v2_tx_data = "", DIR = out, VEC = [63:0]
+PORT alma_pic_r2_ten_Gbe_v2_tx_dest_ip = "", DIR = out, VEC = [31:0]
+PORT alma_pic_r2_ten_Gbe_v2_tx_dest_port = "", DIR = out, VEC = [15:0]
+PORT alma_pic_r2_ten_Gbe_v2_tx_end_of_frame = "", DIR = out
+PORT alma_pic_r2_ten_Gbe_v2_tx_valid = "", DIR = out
+
+# alma_pic_r2/to_PPC_0
+PORT alma_pic_r2_to_PPC_0_user_data_in = "", DIR = out, VEC = [31:0]
+
+END

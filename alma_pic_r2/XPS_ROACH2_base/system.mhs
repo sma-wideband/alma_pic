@@ -1,0 +1,335 @@
+# ##############################################################################
+# Target Board:  ROACH v2.0
+# Family:	     virtex6
+# Device:	     xc6vsx475t
+# Package:	     ff1759
+# Speed Grade:	 -1
+# Processor:     None
+# System clock frequency: 100.000000 MHz
+# ##############################################################################
+
+ PARAMETER VERSION = 2.1.0
+
+
+# Clock Ports
+ PORT sys_clk_n = sys_clk_n, DIR = I, SIGIS = CLK, CLK_FREQ = 100000000
+ PORT sys_clk_p = sys_clk_p, DIR = I, SIGIS = CLK, CLK_FREQ = 100000000
+ #PORT aux_clk_n = aux_clk_n, DIR = I, SIGIS = CLK, CLK_FREQ = 100000000
+ #PORT aux_clk_p = aux_clk_p, DIR = I, SIGIS = CLK, CLK_FREQ = 100000000
+PORT aux_clk_n  = aux_clk_n,  DIR = I, SIGIS = CLK, CLK_FREQ = 100000000
+PORT aux_clk_p  = aux_clk_p,  DIR = I, SIGIS = CLK, CLK_FREQ = 100000000
+# PORT aux_synci_n = aux_synci_n,   DIR = I, SIGIS = CLK, CLK_FREQ = 200000000
+# PORT aux_synci_p = aux_synci_p,   DIR = I, SIGIS = CLK, CLK_FREQ = 200000000
+# PORT aux_synco_n = aux_synco_n,   DIR = I, SIGIS = CLK, CLK_FREQ = 200000000
+# PORT aux_synco_p = aux_synco_p,   DIR = I, SIGIS = CLK, CLK_FREQ = 200000000
+# EPB Ports
+ PORT epb_clk_in = epb_clk_in, DIR = I
+ PORT epb_data = epb_data, DIR = IO, VEC = [0:31]
+ PORT epb_addr = epb_addr, DIR = I, VEC = [5:29]
+ PORT epb_cs_n = epb_cs_n, DIR = I
+ PORT epb_be_n = epb_be_n, DIR = I, VEC = [0:3]
+ PORT epb_r_w_n = epb_r_w_n, DIR = I
+ PORT epb_oe_n = epb_oe_n, DIR = I
+ PORT epb_doe_n = epb_doe_n, DIR = O
+ PORT epb_rdy = epb_rdy, DIR = O
+ PORT ppc_irq_n = ppc_irq_n, DIR = O
+# VDIF ports
+ PORT vdif_clk_in_p = vdif_clk_in_p, DIR = I, SIGIS = CLK, CLK_FREQ = 125000000
+ PORT vdif_clk_in_n = vdif_clk_in_n, DIR = I, SIGIS = CLK, CLK_FREQ = 125000000
+ PORT vdif_sum_data_p = vdif_sum_data_p, DIR = I, VEC = [63:0]
+ PORT vdif_sum_data_n = vdif_sum_data_n, DIR = I, VEC = [63:0]
+
+
+ # MGT Ports
+PORT xaui_refclk_n      = xaui_refclk_n, DIR = I, VEC = [2:0]
+PORT xaui_refclk_p      = xaui_refclk_p, DIR = I, VEC = [2:0]
+PORT mgt_rx_n           = mgt_rx_n,  DIR = I, VEC = [8*4-1:0]
+PORT mgt_rx_p           = mgt_rx_p,  DIR = I, VEC = [8*4-1:0]
+PORT mgt_tx_n           = mgt_tx_n,  DIR = O, VEC = [8*4-1:0]
+PORT mgt_tx_p           = mgt_tx_p,  DIR = O, VEC = [8*4-1:0]
+BEGIN xaui_infrastructure
+  PARAMETER INSTANCE = xaui_infrastructure_inst
+  PARAMETER HW_VER = 1.00.a
+  PARAMETER ENABLE0  = 1
+   PARAMETER TX_LANE_STEER0 = 0
+   PARAMETER RX_INVERT0 = 1
+  PORT xaui_refclk_n = xaui_refclk_n
+  PORT xaui_refclk_p = xaui_refclk_p
+  PORT mgt_rx_n    = mgt_rx_n
+  PORT mgt_rx_p    = mgt_rx_p
+  PORT mgt_tx_n    = mgt_tx_n
+  PORT mgt_tx_p    = mgt_tx_p
+  PORT reset       = sys_reset
+  PORT xaui_clk    = xaui_clk
+  BUS_INTERFACE XAUI_SYS_0 = xaui_sys0
+  BUS_INTERFACE PHY_CONF_0 = phy_conf0
+END
+
+
+BEGIN roach_infrastructure
+ PARAMETER INSTANCE = infrastructure_inst
+ PARAMETER HW_VER = 1.00.a
+  PARAMETER CLK_FREQ     = 100
+  PARAMETER CLK_HIGH_LOW = low
+  PARAMETER MULTIPLY     = 8
+  PARAMETER DIVIDE       = 8
+  PARAMETER DIVCLK       = 1
+ #PARAMETER CLK_FREQ = 100
+ PORT sys_clk_n = sys_clk_n
+ PORT sys_clk_p = sys_clk_p
+ PORT aux_clk_n = aux_clk_n
+ PORT aux_clk_p = aux_clk_p
+# PORT aux_synci_n   = aux1_clk_n
+# PORT aux_synci_p   = aux1_clk_p
+# PORT aux_synco_n   = aux1_clk_n
+# PORT aux_synco_p   = aux1_clk_p
+ PORT epb_clk_in = epb_clk_in
+ PORT sys_clk = sys_clk
+ PORT sys_clk90 = sys_clk90
+ PORT sys_clk180 = sys_clk180
+ PORT sys_clk270 = sys_clk270
+ PORT sys_clk_lock = sys_clk_lock
+ PORT sys_clk2x = sys_clk2x
+ PORT sys_clk2x90 = sys_clk2x90
+ PORT sys_clk2x180 = sys_clk2x180
+ PORT sys_clk2x270 = sys_clk2x270
+ PORT aux_clk       = aux_clk
+ PORT aux_clk90     = aux_clk90
+ PORT aux_clk180    = aux_clk180
+ PORT aux_clk270    = aux_clk270
+ PORT aux_clk2x     = aux_clk2x
+ PORT aux_clk2x90   = aux_clk2x90
+ PORT aux_clk2x180  = aux_clk2x180
+ PORT aux_clk2x270  = aux_clk2x270
+ PORT epb_clk = epb_clk
+ PORT idelay_rst = power_on_rst
+ PORT idelay_rdy = idelay_rdy
+ PORT op_power_on_rst  = power_on_rst
+END
+
+BEGIN reset_block
+ PARAMETER INSTANCE = reset_block_inst
+ PARAMETER HW_VER = 1.00.a
+ PARAMETER WIDTH = 1000
+ PORT clk = sys_clk
+ PORT ip_async_reset_i = power_on_rst
+ PORT ip_reset_i = power_on_rst
+ PORT op_reset_o = sys_reset
+END
+
+BEGIN opb_v20
+ PARAMETER INSTANCE = opb0
+ PARAMETER HW_VER = 1.10.c
+ PARAMETER C_EXT_RESET_HIGH = 1
+ PARAMETER C_REG_GRANTS = 0
+ PORT SYS_Rst = power_on_rst
+ PORT OPB_Clk = epb_clk
+END
+
+BEGIN epb32_opb_bridge
+ PARAMETER INSTANCE = epb_opb_bridge_inst
+ PARAMETER HW_VER = 1.00.a
+ BUS_INTERFACE MOPB = opb0
+ PORT epb_clk = epb_clk
+ PORT epb_cs_n = epb_cs_n
+ PORT epb_oe_n = epb_oe_n
+ PORT epb_r_w_n = epb_r_w_n
+ PORT epb_be_n = epb_be_n
+ PORT epb_addr = epb_addr
+ PORT epb_doe_n = epb_doe_n
+ PORT epb_data_oe_n = epb_data_oe_n
+ PORT epb_data_i = epb_data_i
+ PORT epb_data_o = epb_data_o
+ PORT epb_rdy = epb_rdy
+END
+
+BEGIN epb_infrastructure
+ PARAMETER INSTANCE = epb_infrastructure_inst
+ PARAMETER HW_VER = 1.00.a
+ PORT epb_data_oe_n_i = epb_data_oe_n
+ PORT epb_data_out_i = epb_data_o
+ PORT epb_data_in_o = epb_data_i
+ PORT epb_data_buf = epb_data
+END
+
+BEGIN sys_block
+ PARAMETER INSTANCE = sys_block_inst
+ PARAMETER HW_VER = 1.00.a
+ PARAMETER BOARD_ID = 0xbabe
+ PARAMETER REV_MAJOR = 0x1
+ PARAMETER REV_MINOR = 0x0
+ PARAMETER REV_RCS = 0x0
+ PARAMETER RCS_UPTODATE = 0x0
+ PARAMETER C_BASEADDR = 0x00000000
+ PARAMETER C_HIGHADDR = 0x0000FFFF
+ BUS_INTERFACE SOPB = opb0
+ PORT OPB_Clk = epb_clk
+ PORT soft_reset = soft_reset
+ PORT irq_n = ppc_irq_n
+ PORT app_irq = 0x0000
+ #PORT fab_clk    = sys_clk
+  PORT fab_clk    = sys_clk
+END
+
+# ALMA PIC interface
+BEGIN opb_vdif_interface
+ PARAMETER INSTANCE = vdif_inst
+ PARAMETER HW_VER = 1.00.a
+ PARAMETER C_BASEADDR = 0x00010000
+ PARAMETER C_HIGHADDR = 0x0001FFFF
+ PARAMETER REV_MAJOR_INT = 0x01
+ PARAMETER REV_MAJOR_FRAC = 0x00
+ PARAMETER P_TYPE = 0x83
+ PARAMETER ADDRHI = 0x00
+ PARAMETER nch = 4
+ BUS_INTERFACE SOPB = opb0
+ PORT OPB_Clk = epb_clk
+ PORT clk_in_p = vdif_clk_in_p
+ PORT clk_in_n = vdif_clk_in_n
+ PORT sum_in_p = vdif_sum_data_p
+ PORT sum_in_n = vdif_sum_data_n
+ PORT adc_clk = sys_clk
+ PORT OnePPS = 0b0
+ PORT DataRdy = 0b0000
+ PORT TimeCode = 0x00000000
+ PORT dataIn = 0x0000000000000000
+ PORT To10GbeTxData = alma_pic_r1_ten_GbE_tx_data
+ PORT To10GbeTxDataValid = alma_pic_r1_ten_GbE_tx_valid
+ PORT To10GbeTxEOF = alma_pic_r1_ten_GbE_tx_end_of_frame
+ PORT test_port = alma_pic_r2_to_PPC_0_user_data_in
+END
+
+##############################################
+# User XSG IP core                           #
+##############################################
+
+BEGIN alma_pic_r2
+ PARAMETER INSTANCE = alma_pic_r2_XSG_core_config
+ PARAMETER HW_VER = 1.00.a
+ PORT clk = sys_clk
+ PORT alma_pic_r2_frm_PPC_0_user_data_out = alma_pic_r2_frm_PPC_0_user_data_out
+ PORT alma_pic_r2_frm_ppc_1_user_data_out = alma_pic_r2_frm_ppc_1_user_data_out
+ PORT alma_pic_r2_ten_Gbe_v2_led_rx = alma_pic_r2_ten_Gbe_v2_led_rx
+ PORT alma_pic_r2_ten_Gbe_v2_led_tx = alma_pic_r2_ten_Gbe_v2_led_tx
+ PORT alma_pic_r2_ten_Gbe_v2_led_up = alma_pic_r2_ten_Gbe_v2_led_up
+ PORT alma_pic_r2_ten_Gbe_v2_rx_bad_frame = alma_pic_r2_ten_Gbe_v2_rx_bad_frame
+ PORT alma_pic_r2_ten_Gbe_v2_rx_data = alma_pic_r2_ten_Gbe_v2_rx_data
+ PORT alma_pic_r2_ten_Gbe_v2_rx_end_of_frame = alma_pic_r2_ten_Gbe_v2_rx_end_of_frame
+ PORT alma_pic_r2_ten_Gbe_v2_rx_overrun = alma_pic_r2_ten_Gbe_v2_rx_overrun
+ PORT alma_pic_r2_ten_Gbe_v2_rx_source_ip = alma_pic_r2_ten_Gbe_v2_rx_source_ip
+ PORT alma_pic_r2_ten_Gbe_v2_rx_source_port = alma_pic_r2_ten_Gbe_v2_rx_source_port
+ PORT alma_pic_r2_ten_Gbe_v2_rx_valid = alma_pic_r2_ten_Gbe_v2_rx_valid
+ PORT alma_pic_r2_ten_Gbe_v2_tx_afull = alma_pic_r2_ten_Gbe_v2_tx_afull
+ PORT alma_pic_r2_ten_Gbe_v2_tx_overflow = alma_pic_r2_ten_Gbe_v2_tx_overflow
+ PORT alma_pic_r2_ten_Gbe_v2_rst = alma_pic_r2_ten_Gbe_v2_rst
+ PORT alma_pic_r2_ten_Gbe_v2_rx_ack = alma_pic_r2_ten_Gbe_v2_rx_ack
+ PORT alma_pic_r2_ten_Gbe_v2_rx_overrun_ack = alma_pic_r2_ten_Gbe_v2_rx_overrun_ack
+ PORT alma_pic_r2_ten_Gbe_v2_tx_data = alma_pic_r2_ten_Gbe_v2_tx_data
+ PORT alma_pic_r2_ten_Gbe_v2_tx_dest_ip = alma_pic_r2_ten_Gbe_v2_tx_dest_ip
+ PORT alma_pic_r2_ten_Gbe_v2_tx_dest_port = alma_pic_r2_ten_Gbe_v2_tx_dest_port
+ PORT alma_pic_r2_ten_Gbe_v2_tx_end_of_frame = alma_pic_r2_ten_Gbe_v2_tx_end_of_frame
+ PORT alma_pic_r2_ten_Gbe_v2_tx_valid = alma_pic_r2_ten_Gbe_v2_tx_valid
+END
+
+############################
+# Simulink interfaces      #
+############################
+
+# alma_pic_r2/XSG core config
+
+
+# alma_pic_r2/frm_PPC_0
+BEGIN opb_register_ppc2simulink
+ PARAMETER INSTANCE = alma_pic_r2_frm_PPC_0
+ PARAMETER HW_VER = 1.00.a
+ PARAMETER C_BASEADDR = 0x01000000
+ PARAMETER C_HIGHADDR = 0x010000FF
+ BUS_INTERFACE SOPB = opb0
+ PORT OPB_Clk = epb_clk
+ PORT user_data_out = alma_pic_r2_frm_PPC_0_user_data_out
+ PORT user_clk = sys_clk
+END
+
+# alma_pic_r2/frm_ppc_1
+BEGIN opb_register_ppc2simulink
+ PARAMETER INSTANCE = alma_pic_r2_frm_ppc_1
+ PARAMETER HW_VER = 1.00.a
+ PARAMETER C_BASEADDR = 0x01000100
+ PARAMETER C_HIGHADDR = 0x010001FF
+ BUS_INTERFACE SOPB = opb0
+ PORT OPB_Clk = epb_clk
+ PORT user_data_out = alma_pic_r2_frm_ppc_1_user_data_out
+ PORT user_clk = sys_clk
+END
+
+# alma_pic_r2/ten_Gbe_v2
+BEGIN kat_ten_gb_eth
+ PARAMETER INSTANCE = alma_pic_r2_ten_Gbe_v2
+ PARAMETER HW_VER = 1.00.a
+ PARAMETER FABRIC_MAC = 0x123456780000
+ PARAMETER FABRIC_IP = 0xC0A80514
+ PARAMETER FABRIC_PORT = 0x2710
+ PARAMETER FABRIC_GATEWAY = 0x1
+ PARAMETER FABRIC_ENABLE = 1
+ PARAMETER LARGE_PACKETS = 0
+ PARAMETER RX_DIST_RAM = 1
+ PARAMETER CPU_RX_ENABLE = 1
+ PARAMETER CPU_TX_ENABLE = 1
+ PARAMETER PREEMPHASIS = 4
+ PARAMETER POSTEMPHASIS = 0
+ PARAMETER DIFFCTRL = 10
+ PARAMETER RXEQMIX = 7
+ PARAMETER C_BASEADDR = 0x01004000
+ PARAMETER C_HIGHADDR = 0x01007FFF
+ BUS_INTERFACE SOPB = opb0
+ PORT OPB_Clk = epb_clk
+ BUS_INTERFACE PHY_CONF = phy_conf0
+ BUS_INTERFACE XAUI_CONF = xaui_conf0
+ BUS_INTERFACE XGMII = xgmii0
+ PORT led_rx = alma_pic_r2_ten_Gbe_v2_led_rx
+ PORT led_tx = alma_pic_r2_ten_Gbe_v2_led_tx
+ PORT led_up = alma_pic_r2_ten_Gbe_v2_led_up
+ PORT rx_bad_frame = alma_pic_r2_ten_Gbe_v2_rx_bad_frame
+ PORT rx_data = alma_pic_r2_ten_Gbe_v2_rx_data
+ PORT rx_end_of_frame = alma_pic_r2_ten_Gbe_v2_rx_end_of_frame
+ PORT rx_overrun = alma_pic_r2_ten_Gbe_v2_rx_overrun
+ PORT rx_source_ip = alma_pic_r2_ten_Gbe_v2_rx_source_ip
+ PORT rx_source_port = alma_pic_r2_ten_Gbe_v2_rx_source_port
+ PORT rx_valid = alma_pic_r2_ten_Gbe_v2_rx_valid
+ PORT tx_afull = alma_pic_r2_ten_Gbe_v2_tx_afull
+ PORT tx_overflow = alma_pic_r2_ten_Gbe_v2_tx_overflow
+ PORT rst = alma_pic_r2_ten_Gbe_v2_rst
+ PORT rx_ack = alma_pic_r2_ten_Gbe_v2_rx_ack
+ PORT rx_overrun_ack = alma_pic_r2_ten_Gbe_v2_rx_overrun_ack
+ PORT tx_data = alma_pic_r2_ten_Gbe_v2_tx_data
+ PORT tx_dest_ip = alma_pic_r2_ten_Gbe_v2_tx_dest_ip
+ PORT tx_dest_port = alma_pic_r2_ten_Gbe_v2_tx_dest_port
+ PORT tx_end_of_frame = alma_pic_r2_ten_Gbe_v2_tx_end_of_frame
+ PORT tx_valid = alma_pic_r2_ten_Gbe_v2_tx_valid
+ PORT clk = sys_clk
+ PORT xaui_clk = xaui_clk
+ PORT xaui_reset = sys_reset
+END
+
+BEGIN xaui_phy
+  PARAMETER INSTANCE = xaui_phy_0
+  PARAMETER HW_VER = 1.00.a
+  BUS_INTERFACE XAUI_SYS = xaui_sys0
+  BUS_INTERFACE XAUI_CONF = xaui_conf0
+  BUS_INTERFACE XGMII    = xgmii0
+  PORT reset   = sys_reset
+  PORT xaui_clk = xaui_clk
+END
+
+# alma_pic_r2/to_PPC_0
+BEGIN opb_register_simulink2ppc
+ PARAMETER INSTANCE = alma_pic_r2_to_PPC_0
+ PARAMETER HW_VER = 1.00.a
+ PARAMETER C_BASEADDR = 0x01008000
+ PARAMETER C_HIGHADDR = 0x010080FF
+ BUS_INTERFACE SOPB = opb0
+ PORT OPB_Clk = epb_clk
+ PORT user_data_in = alma_pic_r2_to_PPC_0_user_data_in
+ PORT user_clk = sys_clk
+END
+

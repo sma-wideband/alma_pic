@@ -1,0 +1,7 @@
+#!/bin/bash
+cp implementation/system.bit ../bit_files/$1.bit
+./mkbof_64 -o implementation/system.bof -s core_info.tab -t 3 implementation/system.bin
+chmod +x implementation/system.bof
+cp implementation/system.bof ../bit_files/$1.bof
+gzip -c ../bit_files/$1.bof  > ../bit_files/$1.bof.gz
+chmod +x ../bit_files/$1.bof.gz
