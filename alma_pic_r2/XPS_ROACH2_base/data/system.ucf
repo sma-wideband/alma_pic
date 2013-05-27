@@ -393,6 +393,15 @@ NET "mgt_tx_p<3>"        LOC = BB3;
 
 
 ##############################################
+# VDIF constraints                           #
+##############################################
+
+NET "vdif_roachtp<0>"        LOC = H18    | IOSTANDARD = "LVCMOS15";
+NET "vdif_roachtp<1>"        LOC = F16    | IOSTANDARD = "LVCMOS15";
+
+
+
+##############################################
 # IP UCF constraints                         #
 ##############################################
 

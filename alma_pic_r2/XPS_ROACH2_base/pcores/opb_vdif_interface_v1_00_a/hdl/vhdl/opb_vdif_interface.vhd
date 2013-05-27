@@ -58,7 +58,9 @@ entity opb_vdif_interface is
       To10GbeTxEOF    : out std_logic;
 
       -- test port
-      test_port       : out std_logic_vector(31 downto 0)
+      test_port       : out std_logic_vector(31 downto 0);
+      TP              : out std_logic_vector(3 downto 0);
+      ROACHTP         : out std_logic_vector(1 downto 0)
     );
 end entity opb_vdif_interface;
 
@@ -286,6 +288,7 @@ begin
 
   -- connect test ports
   test_port <= test_port_sig;
+  ROACHTP(1 downto 0) <= test_port_sig(6 downto 5);
   
   -- connect clocks
   epb_clk <= OPB_Clk;

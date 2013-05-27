@@ -87,5 +87,7 @@ PARAMETER nch = 0, DT = INTEGER
 	## Test/debug ports
 	######################################
 	PORT test_port           = "", DIR = O, VEC = [0:31]
+	PORT ROACHTP             = "", DIR = O, VEC = [0:1]
+	PORT TP                  = "", DIR = O, VEC = [0:3]
 
 END
