@@ -1,6 +1,0 @@
-v 3
-file . "rdbe_pkg.vhd" "20120823140736.000" "20130103080938.366":
-  package rdbe_pkg at 1( 0) + 0 on 24;
-file . "opb_vdif_interface.vhd" "20130103131355.000" "20130103081401.142":
-  entity opb_vdif_interface at 1( 0) + 0 on 25;
-  architecture vdif_arch of opb_vdif_interface at 61( 2141) + 0 on 26;
