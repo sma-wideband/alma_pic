@@ -1,0 +1,14 @@
+ghdl -i --work=unisim /export/xilinx/14.4/ISE_DS/ISE/vhdl/src/unisims/*.vhd
+ghdl -i --work=unisim /export/xilinx/14.4/ISE_DS/ISE/vhdl/src/unisims/primitive/*.vhd
+ghdl -i --work=xilinxcorelib /export/xilinx/14.4/ISE_DS/ISE/vhdl/src/XilinxCoreLib/*.vhd
+ghdl -i *.vhd
+ghdl -m -g -Punisim  -Pxilinxcorelib --warn-unused --ieee=synopsys -fexplicit test_opb_tb
+ghdl -a -v -Punisim --ieee=synopsys -fexplicit VDIF_fifo.vhd
+ghdl -a -Punisim --ieee=synopsys -fexplicit vdif_formatter.vhd
+ghdl -a --ieee=synopsys -fexplicit vdif_input_sel.vhd
+ghdl -a --ieee=synopsys -fexplicit C167_interface.vhd
+ghdl -a --ieee=synopsys -fexplicit opb_vdif_interface.vhd
+ghdl -a --ieee=synopsys -fexplicit test_opb_tb.vhd
+ghdl -e --ieee=synopsys -fexplicit test_opb_tb
+ghdl -r test_opb_tb --vcd=test_opb_tb.vcd
+gtkwave test_opb_tb.vcd
