@@ -59,7 +59,14 @@ PARAMETER nch = 0, DT = INTEGER
 	PORT OPB_RNW = OPB_RNW, DIR = I, BUS = SOPB
 	PORT OPB_select = OPB_select, DIR = I, BUS = SOPB
 	PORT OPB_seqAddr = OPB_seqAddr, DIR = I, BUS = SOPB
-
+	
+  ######################################
+  ## C167 Bus signals
+  ######################################
+  PORT CD        = "", DIR = IO, VEC = [0:7], 
+  PORT CTRL_DATA = "", DIR = I
+  PORT RnW       = "", DIR = I 
+  PORT uCLK0     = "", DIR = I 
 
 	######################################
 	## Core specific ports
@@ -88,6 +95,7 @@ PARAMETER nch = 0, DT = INTEGER
 	######################################
 	PORT test_port           = "", DIR = O, VEC = [0:31]
 	PORT ROACHTP             = "", DIR = O, VEC = [0:1]
-	PORT TP                  = "", DIR = O, VEC = [0:3]
+	PORT TP_p                = "", DIR = I, VEC = [0:5]
+#	PORT TP_n                = "", DIR = O, VEC = [0:3]
 
 END

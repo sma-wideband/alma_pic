@@ -398,7 +398,27 @@ NET "mgt_tx_p<3>"        LOC = BB3;
 
 NET "vdif_roachtp<0>"        LOC = H18    | IOSTANDARD = "LVCMOS15";
 NET "vdif_roachtp<1>"        LOC = F16    | IOSTANDARD = "LVCMOS15";
-
+NET "vdif_tp_p<5>"           LOC = K19    | IOSTANDARD = "LVCMOS15"; 
+NET "vdif_tp_p<4>"           LOC = L15    | IOSTANDARD = "LVCMOS15";  
+NET "vdif_tp_p<3>"           LOC = P17    | IOSTANDARD = "LVCMOS15";
+NET "vdif_tp_p<2>"           LOC = N16    | IOSTANDARD = "LVCMOS15";
+NET "vdif_tp_p<1>"           LOC = P16    | IOSTANDARD = "LVCMOS15";
+NET "vdif_tp_p<0>"           LOC = N15    | IOSTANDARD = "LVCMOS15";
+#NET "vdif_tp_p<0>"           LOC = AP3    | IOSTANDARD = "LVCMOS15";
+#NET "vdif_tp_n<0>"           LOC = AP4    | IOSTANDARD = "LVCMOS15";
+#
+NET "vdif_uCLK0"     LOC = "M27"  | IOSTANDARD = "LVCMOS15";  # global 15, GPIO15
+NET "vdif_RnW"       LOC = "N20"  | IOSTANDARD = "LVCMOS15";  # global 11, GPIO11
+NET "vdif_CTRL_DATA" LOC = "M28"  | IOSTANDARD = "LVCMOS15";  # global 8, GPIO8
+NET "vdif_CD<0>"     LOC = "G31"  | IOSTANDARD = "LVCMOS15";  # global 0, GPIO0
+NET "vdif_CD<1>"     LOC = "H31"  | IOSTANDARD = "LVCMOS15";  # global 1, GPIO1
+NET "vdif_CD<2>"     LOC = "AF32" | IOSTANDARD = "LVCMOS15";  # global 2, GPIO2
+NET "vdif_CD<3>"     LOC = "AG33" | IOSTANDARD = "LVCMOS15";  # global 3, GPIO3
+NET "vdif_CD<4>"     LOC = "L30"  | IOSTANDARD = "LVCMOS15";  # global 4, GPIO4
+NET "vdif_CD<5>"     LOC = "H30"  | IOSTANDARD = "LVCMOS15";  # global 5, GPIO5
+NET "vdif_CD<6>"     LOC = "M29"  | IOSTANDARD = "LVCMOS15";  # global 6, GPIO6
+NET "vdif_CD<7>"     LOC = "J30"  | IOSTANDARD = "LVCMOS15";  # global 7, GPIO7
+ 
 
 
 ##############################################

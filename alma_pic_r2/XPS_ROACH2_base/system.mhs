@@ -39,7 +39,13 @@ PORT aux_clk_p  = aux_clk_p,  DIR = I, SIGIS = CLK, CLK_FREQ = 100000000
  PORT vdif_sum_data_p = vdif_sum_data_p, DIR = I, VEC = [63:0]
  PORT vdif_sum_data_n = vdif_sum_data_n, DIR = I, VEC = [63:0]
  PORT vdif_roachtp = vdif_roachtp, DIR = O, VEC = [1:0]
- PORT vdif_tp = vdif_tp,  DIR = O, VEC = [3:0]
+ PORT vdif_tp_p = vdif_tp_p,  DIR = I, VEC = [5:0]
+ #PORT vdif_tp_n = vdif_tp_n,  DIR = O, VEC = [3:0]
+ 
+ PORT vdif_CD = vdif_CD, DIR = IO, VEC = [0:7]
+ PORT vdif_CTRL_DATA = vdif_CTRL_DATA, DIR = I
+ PORT vdif_RnW = vdif_RnW, DIR = I
+ PORT vdif_uCLK0 = vdif_uCLK0, DIR = I
 
 
  # MGT Ports
@@ -186,6 +192,12 @@ BEGIN opb_vdif_interface
  PARAMETER nch = 4
  BUS_INTERFACE SOPB = opb0
  PORT OPB_Clk = epb_clk
+ #microprocessor interface
+ PORT CD = vdif_CD
+ PORT CTRL_DATA = vdif_CTRL_DATA
+ PORT RnW = vdif_RnW
+ PORT uCLK0 = vdif_uCLK0
+#other
  PORT clk_in_p = vdif_clk_in_p
  PORT clk_in_n = vdif_clk_in_n
  PORT sum_in_p = vdif_sum_data_p
@@ -200,7 +212,8 @@ BEGIN opb_vdif_interface
  PORT To10GbeTxEOF = alma_pic_r1_ten_GbE_tx_end_of_frame
  PORT test_port = alma_pic_r2_to_PPC_0_user_data_in
  PORT ROACHTP = vdif_roachtp
- PORT TP = vdif_tp
+ PORT TP_p = vdif_tp_p
+#PORT TP_n = vdif_tp_n
 END
 
 ##############################################

@@ -4,6 +4,8 @@ USE ieee.std_logic_1164.all;
 USE ieee.std_logic_unsigned.all;
 use ieee.std_logic_arith.all;
 use work.rdbe_pkg.all;
+Library UNISIM;
+use UNISIM.vcomponents.all;
 
 entity opb_vdif_interface is
   generic ( 
@@ -39,6 +41,14 @@ entity opb_vdif_interface is
       OPB_RNW : in std_logic;
       OPB_select : in std_logic;
       OPB_seqAddr : in std_logic;
+      
+      --Multi-Drop Bus Interface
+      CD_I      : in std_logic_vector(0 to 7); -- uP bus
+      CD_O      : out std_logic_vector(0 to 7); -- uP bus
+      CD_T      : out std_logic; -- uP bus
+      CTRL_DATA : in std_logic; -- control line for uP data bus
+      RnW       : in std_logic; -- read not write
+      uCLK0     : in std_logic; -- clock for microprocessor bus
 
       -- other ports
       clk_in_p        : in std_logic;
@@ -59,8 +69,10 @@ entity opb_vdif_interface is
 
       -- test port
       test_port       : out std_logic_vector(31 downto 0);
-      TP              : out std_logic_vector(3 downto 0);
-      ROACHTP         : out std_logic_vector(1 downto 0)
+      ROACHTP         : out std_logic_vector(1 downto 0);
+      TP_p            : in std_logic_vector(5 downto 0)     
+--      TP_n            : out std_logic_vector(3 downto 0)           
+      
     );
 end entity opb_vdif_interface;
 
@@ -117,6 +129,21 @@ is
         clk_out    : out std_logic;
         data_out   : out std_logic_vector(63 downto 0));
     end component vdif_data;
+    
+    component  c167_interface
+	     port(
+		   uclk	       	: in std_logic;					-- processor clock 
+		   read_write  	: in std_logic;					-- read and write selection, read_write='1' => read, '0' => write
+		   ctrl_data		: in std_logic; 			-- control data selector, ctr_data='1' => control, '0' => data 
+		   c167_data_I	: in std_logic_vector (7 downto 0); 	-- bus connection with the c167, bidirectional
+		   c167_data_O	: out std_logic_vector (7 downto 0); 	-- bus connection with the c167, bidirectional
+		   data_from_cpu	: out std_logic_vector (7 downto 0); -- data_from_CPU, must be used together with C167_WR_EN(X) being 0<=X<=31
+		   data_to_cpu		: in std_logic_vector (7 downto 0);	-- data_to_CPU, must be used together with C167_RR_EN(X) being 0<=X<=31
+		   C167_RD_EN			: out std_logic_vector (31 downto 0);	-- Read enable signals, they must be individually connected to the tri-state controller associated to teh desired signals
+		   C167_WR_EN		  : out std_logic_vector (31 downto 0);	-- Write enable signals, they must be individually connected to the "clock enable" associated to the addressed register.
+		   C167_CLK				: out std_logic	-- C167 clock signal, the first 4 clocks were removed.
+	);
+  end component c167_interface;
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
     -- maximum number of channels that can be used. Initially set to 7.
@@ -274,11 +301,24 @@ end record HdrArray;
     signal ackSigWZ1       :  std_logic := '0';
     signal ackSigR         :  std_logic := '0';
     signal ackSigRZ1       :  std_logic := '0';
+    signal xferAck_sig     :  std_logic := '0';
 
     -- test signals
-    signal test_port_sig : std_logic_vector(31 downto 0);
+    signal test_port_sig : std_logic_vector(31 downto 0) := x"0000_0000";
     signal test_c_baseaddr : std_logic_vector(31 downto 0) := C_BASEADDR;
     signal test_c_highaddr : std_logic_vector(31 downto 0) := C_HIGHADDR;
+    
+    --C167 registers
+    signal c167_reg0_sig     :std_logic_vector(7 downto 0);  --a few registers
+    signal c167_reg1_sig     :std_logic_vector(7 downto 0);
+    signal c167_reg2_sig     :std_logic_vector(7 downto 0);  
+    signal C167_CLK_sig      :std_logic;                    --clock for those registers
+    signal data_from_cpu_sig : std_logic_vector(7 downto 0);    
+    signal data_to_cpu_sig   : std_logic_vector(7 downto 0);
+    signal C167_RD_EN_sig    :std_logic_vector(31 downto 0); --one line goes high
+    signal C167_WR_EN_sig    :std_logic_vector(31 downto 0); --one line goes high   
+
+
 
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
@@ -288,7 +328,46 @@ begin
 
   -- connect test ports
   test_port <= test_port_sig;
-  ROACHTP(1 downto 0) <= test_port_sig(6 downto 5);
+  ROACHTP <= test_port_sig(6 downto 5);
+  --TP_p    <= test_port_sig(10 downto 5);
+
+  -- C167 connections
+  CD_T <=  NOT RnW;
+
+  --buffers for differential IO
+--  OBUFDS_inst_3 : OBUFDS
+--  generic map (
+--  IOSTANDARD => "LVCMOS15")
+--  port map (
+--    O  => TP_p(3), -- Diff_p output (connect directly to top-level port)
+--    OB => TP_n(3), -- Diff_n output (connect directly to top-level port)
+--    I  => test_port_sig(6) -- Buffer input
+--  );
+--  OBUFDS_inst_2 : OBUFDS
+--  generic map (
+--  IOSTANDARD => "LVCMOS15")
+-- port map (
+--    O  => TP_p(2), -- Diff_p output (connect directly to top-level port)
+--    OB => TP_n(2), -- Diff_n output (connect directly to top-level port)
+--    I  => test_port_sig(5) -- Buffer input
+--  );
+--  OBUFDS_inst_1 : OBUFDS
+--  generic map (
+--  IOSTANDARD => "LVCMOS15")
+-- port map (
+--    O  => TP_p(1), -- Diff_p output (connect directly to top-level port)
+--    OB => TP_n(1), -- Diff_n output (connect directly to top-level port)
+--    I  => test_port_sig(4) -- Buffer input
+--  );
+--  OBUFDS_inst_0 : OBUFDS
+--  generic map (
+--  IOSTANDARD => "LVCMOS15")
+--  port map (
+--    O  => TP_p(0), -- Diff_p output (connect directly to top-level port)
+--    OB => TP_n(0), -- Diff_n output (connect directly to top-level port)
+--   I  => test_port_sig(3) -- Buffer input
+--  );
+
   
   -- connect clocks
   epb_clk <= OPB_Clk;
@@ -302,16 +381,18 @@ begin
   -- connect OPB signals
   DeviceAddr(31 downto 0)       <= OPB_ABus(0 to 31);  --take care of the bit reversals in the OPB data bus
   DeviceDataIn(31 downto 0)     <= OPB_DBus(0 to 31);  
-  Sl_DBus(0 to 31)<= DeviceDataOut;       
+  
+ 
   Sl_errAck        <= '0';
   Sl_retry         <= '0';
   Sl_toutSup       <= '0';
 
   --generate opb acknowledge signal
-  Sl_xferAck <= (ackSigR AND NOT ackSigRZ1) OR (ackSigW AND NOT ackSigWZ1);
+  --Sl_xferAck <= (ackSigR AND NOT ackSigRZ1) OR (ackSigW AND NOT ackSigWZ1);
+  --xferAck_sig <= ackSigR OR ackSigW;
 
-  -- EPB register write process
-    RegisterWrite : process(OPB_Rst, epb_clk, OPB_select,
+  -- EPB register access process
+    RegisterAccess : process(OPB_Rst, epb_clk, OPB_select,
                             OPB_RNW, DeviceAddr(18 downto 0))
 
     begin
@@ -322,30 +403,33 @@ begin
         Legacy <= '0';
         selInput <= x"F";       -- bottom 4 channels on
         log2numchan <= "00010"; -- 4 channels total default
-        test_port_sig <= x"00000000";
+--        test_port_sig <= x"00000000";
     elsif rising_edge(epb_clk) then
-        if(ackSigW = '1') then  -- for acknowledge
-           ackSigW <= '0';
-        end if;
-
-        if (test_port_sig = x"FFFFFFFF") then
-          test_port_sig <= x"00000000";
-        else
-          test_port_sig <= test_port_sig + 1;  
-        end if;
+    
+--        if (test_port_sig = x"FFFFFFFF") then
+--          test_port_sig <= x"00000000";
+--       else
+--          test_port_sig <= test_port_sig + 1;  
+--        end if;
 
         ackSigWZ1 <= ackSigW;
         ackSigRZ1 <= ackSigR;
-
-        if (OPB_select = '1') AND (OPB_RNW = '0') AND
+        
+        xferAck_sig <= '0';
+        DeviceDataOut <= x"00000000";
+        Sl_xferAck <= xferAck_sig;
+        
+        Sl_DBus(0 to 31)<= DeviceDataOut ;
+                  
+        if (OPB_select = '1') AND (xferAck_sig = '0') AND
             (DeviceAddr <= C_HIGHADDR) AND
             (DeviceAddr >= C_BASEADDR) then
           
-          if(ackSigW = '0') then                          --for acknowledge Sl_xferAck
-            ackSigW <= ( (NOT OPB_RNW) AND (OPB_select) );
-          end if;
+          xferAck_sig <= '1';
 
-          case (DeviceAddr(5 downto 0)) is
+          if (OPB_RNW = '0') then
+
+            case (DeviceAddr(7 downto 2)) is
 
             when "000000" => SyncWord <= DeviceDataIn;       --0x000
 --            when x"000" => SyncWord(15 downto 0) <= DeviceDataIn;       --0x000
@@ -437,48 +521,21 @@ begin
 --            when x"105" => EpochSecSet(15 downto 0) <= DeviceDataIn;   --0x210
 --            when x"106" => EpochSecSet(29 downto 16) <=
 --                                            DeviceDataIn(13 downto 0);  --0x212
-
-            when others => null;
+              when others => null;
             end case;
-         end if;
-    end if;
-
-    end process RegisterWrite;
-
--- default vdif address for PPC = 0xD080_0xxx
--------------------------------------------------------------------------------
-    -- EPB register read process
-    RegisterRead : process(epb_clk, OPB_select,
-                    OPB_RNW, DeviceAddr)
-   begin
-    if rising_edge(epb_clk) then
-        if (OPB_select = '1') AND (OPB_RNW = '1') AND
-            (DeviceAddr <= C_HIGHADDR) AND
-            (DeviceAddr >= C_BASEADDR) then
-
-          --test_port_sig <= x"cccccccc";
-
-          if(ackSigR = '0') then
-            ackSigR <= (OPB_RNW AND OPB_select);
-          end if;
-
-          case (DeviceAddr(5 downto 0)) is
-
+            
+          else
+ 
+            case (DeviceAddr(7 downto 2)) is
             when "000000" => DeviceDataOut <= SyncWord;      --0x0000
+            when "000001" => DeviceDataOut <= x"000001" & c167_reg0_sig;      --0x0004
+            when "000010" => DeviceDataOut <= x"000002" & c167_reg1_sig;      --0x0008
+            when "000011" => DeviceDataOut <= x"000003" & c167_reg2_sig;      --0x00012
 --            when x"000" => DeviceDataOut <= SyncWord(15 downto 0);      --0x0000
 --            when x"001" => DeviceDataOut <= SyncWord(31 downto 16);     --0x0002
 --            when x"002" => DeviceDataOut <= x"00" & RefEpoch;           --0x0004
 --            when x"003" => DeviceDataOut <= x"000" & "000" & Legacy;    --0x0006
---            when x"004" => DeviceDataOut <= StationID;                  --0x0008
---            when x"005" => DeviceDataOut <= x"000" & DBEnum;            --0x000A
---            when x"006" => DeviceDataOut <=
---             std_logic_vector(to_unsigned(currCh,4)) & FrameNum(currCh);--0x000C
---            when x"007" => DeviceDataOut <= status;                     --0x000E
---            when x"009" => DeviceDataOut <= x"000" &"0" & DTMStatus;    --0x0012
---            when x"00A" => DeviceDataOut <= TimeSlot1On(15 downto 0);   --0x0014
---            when x"00B" => DeviceDataOut <= TimeSlot1On(31 downto 16);  --0x0016
---            when x"00C" => DeviceDataOut <= TimeSlot1Off(15 downto 0);  --0x0018
---            when x"00D" => DeviceDataOut <= TimeSlot1Off(31 downto 16); --0x001A
+--            when x"004" => DeviceDataOut <= TimeSlot1Off(31 downto 16); --0x001A
 --            when x"00E" => DeviceDataOut <= TimeAlign;                  --0x001C
 --            when x"00F" => DeviceDataOut <= prog_full & x"0" & selInput;--0x001E
 
@@ -542,10 +599,15 @@ begin
 --            when x"106" => DeviceDataOut <= "00" & EpochSeconds(29 downto 16); --0x0212
 
             when others => DeviceDataOut <= (others => '0');
-        end case;
-        end if;
+            end case;
+
+         end if;
+         
+      end if;
+
     end if;
-    end process RegisterRead;
+
+    end process RegisterAccess;
 
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
@@ -923,6 +985,60 @@ CurrData <= data_out(currCh);
 --        );
 
 
+-------------------------------------------------------------------------------
+--C167 Interface
+
+  c167 : c167_interface
+  	     port map (
+		   uclk	       =>  uCLK0,     				-- processor clock 
+		   read_write  => RnW, 				-- read and write selection, read_write='1' => read, '0' => write
+		   ctrl_data	 => CTRL_DATA,			-- control data selector, ctr_data='1' => control, '0' => data 
+		   c167_data_I => CD_I, 	-- bus connection with the c167, bidirectional
+		   c167_data_O => CD_O, 	-- bus connection with the c167, bidirectional
+		   data_from_cpu => data_from_cpu_sig,	-- data_from_CPU, must be used together with C167_WR_EN(X) being 0<=X<=31
+--		   data_to_cpu => SyncWord(7 downto 0), 		-- data_to_CPU, must be used together with C167_RR_EN(X) being 0<=X<=31
+		   data_to_cpu => data_to_cpu_sig, 		-- data_to_CPU, must be used together with C167_RR_EN(X) being 0<=X<=31		   
+		   C167_RD_EN => C167_RD_EN_sig,			-- Read enable signals, they must be individually connected to the tri-state controller associated to teh desired signals
+		   C167_WR_EN	=> C167_Wr_EN_sig,	-- Write enable signals, they must be individually connected to the "clock enable" associated to the addressed register.
+		   C167_CLK	=> C167_CLK_sig				-- C167 clock signal, the first 4 clocks were removed.
+	);
+	
+	--process for testing C167 interface
+	test_C167: process(C167_CLK_sig)
+	begin
+	
+	   if falling_edge(C167_CLK_sig) then
+   	   case (C167_RD_EN_sig) is
+           when X"00000001" => data_to_cpu_sig <= c167_reg0_sig;     
+           when X"00000002" => data_to_cpu_sig <= c167_reg1_sig;     
+           when X"00000004" => data_to_cpu_sig <= c167_reg2_sig;
+           when others  => data_to_cpu_sig <= (others => '0');  
+       end case;       
+     end if;
+
+	   if rising_edge(C167_CLK_sig) then
+   	   case (C167_WR_EN_sig) is
+          when X"00000001" => c167_reg0_sig <= data_from_cpu_sig;     
+          when X"00000002" => c167_reg1_sig <= data_from_cpu_sig;   
+          when X"00000004" => c167_reg2_sig <= data_from_cpu_sig;
+          when others  => null;  
+       end case;
+        
+       if(C167_WR_EN_sig > 0) then
+          test_port_sig(7 downto 0) <= test_port_sig(7 downto 0) + 1;      
+       end if;
+
+       if(C167_RD_EN_sig > 0) then
+          test_port_sig(15 downto 8) <= test_port_sig(15 downto 8) + 1;
+       end if;
+        
+       test_port_sig(31 downto 16) <= test_port_sig(31 downto 16) + 1;
+     end if;    
+                                 
+	end process;
+	
+	
+	
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 end architecture vdif_arch;
