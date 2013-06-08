@@ -5,7 +5,7 @@ USE ieee.std_logic_unsigned.all;
 
 
 --  A testbench has no ports.
-     entity test_opb_tb is
+     entity tb_opb_vdif_interface is
   generic ( 
 
     -- Bus protocol parameters
@@ -22,9 +22,9 @@ USE ieee.std_logic_unsigned.all;
     ADDRHI      : std_logic_vector(18 downto 12) := "0000000";
     nch         : integer range 0 to 7 := 4      -- number of channels synthesized
    );
-     end test_opb_tb;
+     end tb_opb_vdif_interface;
      
-     architecture behav of test_opb_tb is
+     architecture behav of tb_opb_vdif_interface is
         --  Declaration of the component that will be instantiated.
         component opb_vdif_interface
           generic (
