@@ -6,4 +6,5 @@ lib opb_vdif_interface_v1_00_a vdif_data.vhd vhdl
 lib opb_vdif_interface_v1_00_a VDIF_fifo.vhd vhdl
 lib opb_vdif_interface_v1_00_a vdif_pkg.vhd vhdl
 lib opb_vdif_interface_v1_00_a rdbe_pkg.vhd vhdl
+lib opb_vdif_interface_v1_00_a mux64.vhd vhdl
 
