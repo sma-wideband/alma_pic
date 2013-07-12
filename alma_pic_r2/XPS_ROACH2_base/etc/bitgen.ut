@@ -12,3 +12,4 @@
 -g Security:NONE
 -g Persist:No
 -g binary:Yes
+-g OverTempPowerDown:Enable 
