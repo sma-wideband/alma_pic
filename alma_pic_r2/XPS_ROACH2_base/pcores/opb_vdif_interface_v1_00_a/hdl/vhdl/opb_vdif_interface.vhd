@@ -67,8 +67,10 @@ entity opb_vdif_interface is
       To10GbeTxDataValid  : out std_logic;
       To10GbeTxEOF    : out std_logic;
 
-      -- test port
-      test_port       : out std_logic_vector(31 downto 0);
+      -- test ports
+      test_port_out   : out std_logic_vector(31 downto 0);
+      test_port_in0   : in  std_logic_vector(31 downto 0);
+      test_port_in1   : in  std_logic_vector(31 downto 0);                  
       ROACHTP         : out std_logic_vector(1 downto 0);
       TP_p            : in std_logic_vector(5 downto 0)     
 --      TP_n            : out std_logic_vector(3 downto 0)           
@@ -144,6 +146,14 @@ is
 		   C167_CLK				: out std_logic	-- C167 clock signal, the first 4 clocks were removed.
 	);
   end component c167_interface;
+  
+    component mux64
+       port(
+            data_sel:	in std_logic_vector(5 downto 0);
+            data_in:	in std_logic_vector(63 downto 0);
+            data_out:		out std_logic
+       );
+    end component mux64;
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
     -- maximum number of channels that can be used. Initially set to 7.
@@ -327,8 +337,12 @@ begin
 -------------------------------------------------------------------------------
 
   -- connect test ports
-  test_port <= test_port_sig;
-  ROACHTP <= test_port_sig(6 downto 5);
+  test_port_sig  <= test_port_in0;  
+  test_port_out <= test_port_sig;
+  
+--  ROACHTP(0) <= uCLK0;
+  ROACHTP(1) <= RnW;
+  --ROACHTP <= test_port_sig(6 downto 5);
   --TP_p    <= test_port_sig(10 downto 5);
 
   -- C167 connections
@@ -1004,40 +1018,61 @@ CurrData <= data_out(currCh);
 	);
 	
 	--process for testing C167 interface
-	test_C167: process(C167_CLK_sig)
+	test_C167: process(C167_CLK_sig, C167_RD_EN_sig)
 	begin
 	
-	   if falling_edge(C167_CLK_sig) then
-   	   case (C167_RD_EN_sig) is
-           when X"00000001" => data_to_cpu_sig <= c167_reg0_sig;     
-           when X"00000002" => data_to_cpu_sig <= c167_reg1_sig;     
-           when X"00000004" => data_to_cpu_sig <= c167_reg2_sig;
-           when others  => data_to_cpu_sig <= (others => '0');  
-       end case;       
-     end if;
+
+   	case (C167_RD_EN_sig) is
+        when X"00000001" => data_to_cpu_sig <= c167_reg0_sig;     
+        when X"00000002" => data_to_cpu_sig <= c167_reg1_sig;     
+        when X"00000004" => data_to_cpu_sig <= c167_reg2_sig;
+        when others  => data_to_cpu_sig <= (others => '0');  
+    end case;       
+    
 
 	   if rising_edge(C167_CLK_sig) then
    	   case (C167_WR_EN_sig) is
-          when X"00000001" => c167_reg0_sig <= data_from_cpu_sig;     
-          when X"00000002" => c167_reg1_sig <= data_from_cpu_sig;   
-          when X"00000004" => c167_reg2_sig <= data_from_cpu_sig;
+          when X"0000_0001" => c167_reg0_sig <= data_from_cpu_sig;     
+          when X"0000_0002" => c167_reg1_sig <= data_from_cpu_sig;   
+          when X"0000_0004" => c167_reg2_sig <= data_from_cpu_sig;
           when others  => null;  
        end case;
         
-       if(C167_WR_EN_sig > 0) then
-          test_port_sig(7 downto 0) <= test_port_sig(7 downto 0) + 1;      
-       end if;
+--       if(C167_WR_EN_sig > 0) then
+--          test_port_sig(7 downto 0) <= test_port_sig(7 downto 0) + 1;      
+--       end if;
 
-       if(C167_RD_EN_sig > 0) then
-          test_port_sig(15 downto 8) <= test_port_sig(15 downto 8) + 1;
-       end if;
+--       if(C167_RD_EN_sig > 0) then
+--          test_port_sig(15 downto 8) <= test_port_sig(15 downto 8) + 1;
+--       end if;
         
-       test_port_sig(31 downto 16) <= test_port_sig(31 downto 16) + 1;
+--       test_port_sig(31 downto 16) <= test_port_sig(31 downto 16) + 1;
      end if;    
                                  
 	end process;
 	
-	
+	-------------------------------------------------------------------------------
+--mux64 for ROACHTP0
+
+  mux_rtp0 : mux64
+  	     port map (
+            data_sel => test_port_in0(5 downto 0),
+            data_in(0)  => uCLK0,
+            data_in(1) => RnW,
+            data_in(2) => NOT RnW,
+            data_in(3) => CTRL_DATA,
+            data_in(4) => c167_reg0_sig(0),
+            data_in(5) => c167_reg0_sig(1),
+            data_in(6) => c167_reg0_sig(2),
+            data_in(7) => c167_reg0_sig(3),
+            data_in(8) => c167_reg0_sig(4),
+            data_in(9) => c167_reg0_sig(5),
+            data_in(10) => c167_reg0_sig(6),
+            data_in(11) => c167_reg0_sig(7),
+            data_in(63 downto 12) => (others => '0'),
+            data_out => ROACHTP(0)
+  	     
+  	     );
 	
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
