@@ -210,7 +210,9 @@ BEGIN opb_vdif_interface
  PORT To10GbeTxData = alma_pic_r1_ten_GbE_tx_data
  PORT To10GbeTxDataValid = alma_pic_r1_ten_GbE_tx_valid
  PORT To10GbeTxEOF = alma_pic_r1_ten_GbE_tx_end_of_frame
- PORT test_port = alma_pic_r2_to_PPC_0_user_data_in
+ PORT test_port_out = alma_pic_r2_to_PPC_0_user_data_in
+ PORT test_port_in0 = alma_pic_r2_frm_PPC_0_user_data_out 
+ PORT test_port_in1 = alma_pic_r2_frm_PPC_1_user_data_out 
  PORT ROACHTP = vdif_roachtp
  PORT TP_p = vdif_tp_p
 #PORT TP_n = vdif_tp_n
@@ -224,8 +226,8 @@ BEGIN alma_pic_r2
  PARAMETER INSTANCE = alma_pic_r2_XSG_core_config
  PARAMETER HW_VER = 1.00.a
  PORT clk = sys_clk
- PORT alma_pic_r2_frm_PPC_0_user_data_out = alma_pic_r2_frm_PPC_0_user_data_out
- PORT alma_pic_r2_frm_ppc_1_user_data_out = alma_pic_r2_frm_ppc_1_user_data_out
+# PORT alma_pic_r2_frm_PPC_0_user_data_out = alma_pic_r2_frm_PPC_0_user_data_out
+# PORT alma_pic_r2_frm_ppc_1_user_data_out = alma_pic_r2_frm_ppc_1_user_data_out
  PORT alma_pic_r2_ten_Gbe_v2_led_rx = alma_pic_r2_ten_Gbe_v2_led_rx
  PORT alma_pic_r2_ten_Gbe_v2_led_tx = alma_pic_r2_ten_Gbe_v2_led_tx
  PORT alma_pic_r2_ten_Gbe_v2_led_up = alma_pic_r2_ten_Gbe_v2_led_up
