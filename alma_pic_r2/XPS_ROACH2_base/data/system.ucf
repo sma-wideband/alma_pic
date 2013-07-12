@@ -407,6 +407,7 @@ NET "vdif_tp_p<0>"           LOC = N15    | IOSTANDARD = "LVCMOS15";
 #NET "vdif_tp_p<0>"           LOC = AP3    | IOSTANDARD = "LVCMOS15";
 #NET "vdif_tp_n<0>"           LOC = AP4    | IOSTANDARD = "LVCMOS15";
 #
+NET "vdif_uCLK0"     CLOCK_DEDICATED_ROUTE = FALSE;  # need this to avoid error since M27 is not a clock pin
 NET "vdif_uCLK0"     LOC = "M27"  | IOSTANDARD = "LVCMOS15";  # global 15, GPIO15
 NET "vdif_RnW"       LOC = "N20"  | IOSTANDARD = "LVCMOS15";  # global 11, GPIO11
 NET "vdif_CTRL_DATA" LOC = "M28"  | IOSTANDARD = "LVCMOS15";  # global 8, GPIO8
