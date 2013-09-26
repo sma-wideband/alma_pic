@@ -39,7 +39,7 @@ component bufg
 	);
 end component;
 
-signal ctrl_reg : std_logic_vector(7 downto 0);											-- target select register
+signal  ctrl_reg : std_logic_vector(7 downto 0);											-- target select register
 signal C167_clk_sig_pre: std_logic;
 signal C167_clk_sig: std_logic;
 signal counter: std_logic_vector(2 downto 0) := "000"; 									-- This counter is use for inhibiting the clock signal during the 4 first clock edges.
