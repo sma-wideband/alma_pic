@@ -32,21 +32,21 @@ USE ieee.std_logic_unsigned.all;
             C_HIGHADDR : std_logic_vector(31 downto 0)
                  );
           port (
-     -- Bus protocol ports
+      -- Bus protocol ports
       OPB_Clk : in std_logic;
       OPB_Rst : in std_logic;
-      Sl_DBus : out std_logic_vector(0 to C_OPB_DWIDTH-1);
+      Sl_DBus : out std_logic_vector(0 to C_OPB_DWIDTH-1); -- note: MSB is bit 0
       Sl_errAck : out std_logic;
       Sl_retry : out std_logic;
       Sl_toutSup : out std_logic;
       Sl_xferAck : out std_logic;
-      OPB_ABus : in std_logic_vector(0 to C_OPB_AWIDTH-1);
+      OPB_ABus : in std_logic_vector(0 to C_OPB_AWIDTH-1);  -- note: MSB is bit 0
       OPB_BE : in std_logic_vector(0 to C_OPB_DWIDTH/8-1);
-      OPB_DBus : in std_logic_vector(0 to C_OPB_DWIDTH-1);
+      OPB_DBus : in std_logic_vector(0 to C_OPB_DWIDTH-1);  -- note: MSB is bit 0
       OPB_RNW : in std_logic;
       OPB_select : in std_logic;
       OPB_seqAddr : in std_logic;
-
+      
       --Multi-Drop Bus Interface
       CD_I      : in std_logic_vector(0 to 7); -- uP bus
       CD_O      : out std_logic_vector(0 to 7); -- uP bus
@@ -56,27 +56,45 @@ USE ieee.std_logic_unsigned.all;
       uCLK0     : in std_logic; -- clock for microprocessor bus
 
       -- other ports
-      clk_in_p        : in std_logic;
+      clk_in_p        : in std_logic;  --correlator 125 MHz clock
       clk_in_n        : in std_logic;
-      sum_in_p        : in std_logic_vector(63 downto 0);
-      sum_in_n        : in std_logic_vector(63 downto 0);
-      adc_clk         : in std_logic;
-      OnePPS          : in std_logic;
-      TE              : in std_logic;
-      DataRdy         : in std_logic_vector(nch-1 downto 0);
-      TimeCode        : in std_logic_vector(31 downto 0);
-      dataIn          : in std_logic_vector(63 downto 0);
-
-      -- test port
-      test_port       : out std_logic_vector(31 downto 0);
-      ROACHTP         : out std_logic_vector(1 downto 0);
-      TP_p            : in std_logic_vector(5 downto 0);
+      adc_clk         : in std_logic;  --alternate clock, connected to on-board 100MHz, for bench testing      
+      sum_data_p      : in std_logic_vector(63 downto 0); --sum_data_p(0) is the LSB of channel 0; sum_data_p(63) is the MSB of channel 31, etc.
+      sum_data_n      : in std_logic_vector(63 downto 0);
+      PPS_Maser_p     : in std_logic;  --1-PPS from Maser for sanity check of the locally generated 1-PPS from the TE
+      PPS_Maser_n     : in std_logic;
+      PPS_GPS_p       : in std_logic;  --1-PPS from GPS for sanity check of the locally generated 1-PPS from the TE
+      PPS_GPS_n       : in std_logic;
+      PPS_PIC_p       : out std_logic;  --local 1-PPS generated 1-PPS from the TE, for output to test point on 1-PPS buffer card
+      PPS_PIC_n       : out std_logic;
+      TE_p            : in std_logic;   --the 48 msec TE signal from the QCC, called TIME_IN on PIC schematic
+      TE_n            : in std_logic;
+      TIME0           : out std_logic;  --the 48 msec TE signal to the microprocessor interrupt
+      DONE            : out std_logic;  --signal to indicate to microprocessor that FPGA is programmed.  Drive low      
+--      DataRdy         : in std_logic_vector(nch-1 downto 0);
+--      TimeCode        : in std_logic_vector(31 downto 0);
+--      dataIn          : in std_logic_vector(63 downto 0);  --data for VLBA; need to delete sometime
 
       -- ten GbE ports
       To10GbeTxData   : out std_logic_vector(63 downto 0);
       To10GbeTxDataValid  : out std_logic;
-      To10GbeTxEOF    : out std_logic
-            );
+      To10GbeTxEOF    : out std_logic;
+      
+      --DAC ports
+      DAC_CLK_p       : out std_logic;
+      DAC_CLK_n       : out std_logic;
+      DAC_IN_A        : out std_logic_vector(3 downto 0);      
+      DAC_IN_B        : out std_logic_vector(3 downto 0);
+--      DAC_IN_A0       : out std_logic_vector(3 downto 0);  --test to try to get DAC data bits working
+      
+      -- test ports
+      test_port_out   : out std_logic_vector(31 downto 0);
+      test_port_in0   : in  std_logic_vector(31 downto 0);
+      test_port_in1   : in  std_logic_vector(31 downto 0);                  
+      ROACHTP         : out std_logic_vector(1 downto 0);
+      ROUTB           : out std_logic_vector(3 downto 0)  --test points to JR1           
+      
+    );
         end component;
         --  Specifies which entity is bound with the component.
         for test_opb_0: opb_vdif_interface use entity work.opb_vdif_interface;
@@ -99,6 +117,11 @@ USE ieee.std_logic_unsigned.all;
         signal CTRL_DATA_sig : std_logic;
         signal RnW_sig : std_logic;
         signal uCLK0_sig : std_logic;
+        
+        signal PPS_PIC_sig:     std_logic;
+        signal PPS_PIC_sig_not: std_logic;  
+        signal TIME0_sig:       std_logic := '0';      
+        signal DONE_sig:        std_logic := '0';           
 
         signal To10GbeTxData_sig  :   std_logic_vector(63 downto 0);
         signal To10GbeTxDataValid_sig  :   std_logic;
@@ -106,6 +129,9 @@ USE ieee.std_logic_unsigned.all;
 
         signal test_sig1:  std_logic;
         signal test_sig2: std_logic;
+        signal test_port_out_sig:   std_logic_vector(31 downto 0) := x"0000_0000";
+        signal ROACHTP_sig: std_logic_vector(1 downto 0);   
+        signal ROUTB_sig: std_logic_vector(3 downto 0);  --test points to JR1
 
      begin
 
@@ -118,6 +144,7 @@ USE ieee.std_logic_unsigned.all;
         --uCLK0_sig              <= '0';
         To10GbeTxDataValid_sig <= '0';
         To10GbeTxEOF_sig       <= '0';
+        PPS_PIC_sig_not        <= NOT PPS_PIC_sig;
 
         --  Component instantiation.
         test_opb_0: opb_vdif_interface
@@ -151,17 +178,27 @@ USE ieee.std_logic_unsigned.all;
              -- other ports
              clk_in_p => '0',
              clk_in_n => '0',
-             sum_in_p => X"0000000000000000",
-             sum_in_n => X"0000000000000000",
              adc_clk => '0',
-             OnePPS => '0',
-             TE => '0',
-             DataRdy => "0000",
-             TimeCode => X"00000000",
-             dataIn => X"0000000000000000",
+             sum_data_p => X"0000000000000000",
+             sum_data_n => X"0000000000000000",
+             PPS_Maser_p => '0',
+             PPS_Maser_n => '1',
+             PPS_GPS_p   => '0',
+             PPS_GPS_n   => '1',
+             PPS_PIC_p   => PPS_PIC_sig,
+             PPS_PIC_n   => PPS_PIC_sig_not,                                       
+             TE_p        => '0',
+             TE_n        => '1',             
+             TIME0       => TIME0_sig,
+             DONE        => DONE_sig,
+
 
              -- test ports
-             TP_p => "000000",
+             test_port_in0 => X"0000_0000",
+             test_port_in1 => X"0000_0000",             
+             test_port_out => test_port_out_sig, 
+             ROACHTP       => ROACHTP_sig,                          
+             ROUTB         => ROUTB_sig,                                                
 
              -- ten GbE ports
              To10GbeTxData => To10GbeTxData_sig,
