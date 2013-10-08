@@ -14,21 +14,14 @@ use ieee.std_logic_arith.all;
 entity c167_interface is
 	port(
 
-		   uclk     				: in std_logic; 											-- processor clock
-		   
+		   uclk     				: in std_logic; 											-- processor clock		   
 		   read_write     		: in std_logic; 											-- read and write selection, read_write='1' => read, '0' => write
-
-		   ctrl_data				: in std_logic; 											-- control data selector, ctr_data='1' => control, '0' => data 
-		   
-		   c167_data_I		: in std_logic_vector (7 downto 0); 			-- bus connection with the c167, bidirectional
-		   
+		   ctrl_data				: in std_logic; 											-- control data selector, ctr_data='1' => control, '0' => data 		   
+		   c167_data_I		: in std_logic_vector (7 downto 0); 			-- bus connection with the c167, bidirectional		   
 		   c167_data_O		: out std_logic_vector (7 downto 0); 			-- bus connection with the c167, bidirectional
-
-		   data_from_cpu			: out std_logic_vector (7 downto 0);				-- data_from_CPU, must be used together with C167_WR_EN(X) being 0<=X<=31
-		   
-		   data_to_cpu				: in std_logic_vector (7 downto 0);					-- data_to_CPU, must be used together with C167_RR_EN(X) being 0<=X<=31
-		   
-		   C167_RD_EN				: out std_logic_vector (31 downto 0);				-- Read enable signals, they must be individually connected to the tri-state controller associated to teh desired signals
+		   data_from_cpu			: out std_logic_vector (7 downto 0);				-- data_from_CPU, must be used together with C167_WR_EN(X) being 0<=X<=31		   
+		   data_to_cpu				: in std_logic_vector (7 downto 0);					-- data_to_CPU, must be used together with C167_RR_EN(X) being 0<=X<=31		   
+		   C167_RD_EN				: out std_logic_vector (31 downto 0);				-- Read enable signals, they must be individually connected to the tri-state controller associated to the desired signals
 		   
 		   C167_WR_EN				: out std_logic_vector (31 downto 0);				-- Write enable signals, they must be individually connected to the "clock enable" associated to the addressed register.
 		   
@@ -46,7 +39,7 @@ component bufg
 	);
 end component;
 
-signal c : std_logic_vector(7 downto 0);											-- target select register
+signal  ctrl_reg : std_logic_vector(7 downto 0);											-- target select register
 signal C167_clk_sig_pre: std_logic;
 signal C167_clk_sig: std_logic;
 signal counter: std_logic_vector(2 downto 0) := "000"; 									-- This counter is use for inhibiting the clock signal during the 4 first clock edges.
@@ -54,50 +47,31 @@ signal counter_enable : std_logic := '0';
 
 begin
 
---bufg_0 : bufg            NOTE: probably want this bug because it drives the clock to all registers; it does not want to simulate
---	port map(
---	i => C167_clk_sig_pre,
---	o => C167_clk_sig
---	);
-
---C167_clk_sig <= C167_clk_sig_pre;
---C167_CLK <= C167_clk_sig;	
-
-  C167_clk_sig <= uclk AND counter_enable;
+bufg_0 : bufg            --NOTE: probably want this bufg because it drives the clock to all registers; it does not want to simulate; comment out for simulation
+	port map(
+	i => C167_clk_sig_pre,
+	o => C167_clk_sig
+	);
+	
+--set up clocking; change when done with simulation to use bufg above
+  C167_clk_sig_pre <= uclk;
+--  C167_clk_sig     <= C167_clk_sig_pre;      ***remove comment for simulation
   C167_CLK <= C167_clk_sig;  
 
-generate_c167_clk: process(uclk) is
-begin	
-  
-	if uclk='1' and uclk'event and (counter_enable = '0') then
-		counter <= counter + '1';
-
-
-	  if counter(2) = '1' then
-	     counter_enable <= '1';
---		C167_clk_sig <= uclk;
---		counter <= "100";
---    else
---	  C167_clk_sig <= '1';															-- inhibit the first 4 clock cycles
-	  end if;	
-
---  C167_CLK <= C167_clk_sig;																	-- connects the generated clock signal to the external world
-	end if;
-end process generate_c167_clk;
 
 load_target_select_register: process(C167_clk_sig,ctrl_data) is				-- process for loading the control register
 begin
 if ctrl_data = '1' then
-	if C167_clk_sig='1' and C167_clk_sig'event then
-		c <= c167_data_I;
+	if rising_edge(C167_clk_sig) then
+		ctrl_reg <= c167_data_I;
 	end if;
 end if;	
 end process load_target_select_register;
 
-update_rd_wr_registers: process(ctrl_data,read_write,c) is						-- process for setting/clear the read and write enable signal
+update_rd_wr_registers: process(ctrl_data,read_write,ctrl_reg) is						-- process for setting/clear the read and write enable signal
 begin
 if ctrl_data='0' and read_write='0' then
-	case c(4 downto 0) is
+	case ctrl_reg(4 downto 0) is
 		when "00000"  => C167_WR_EN <= X"0000_0001";
 		when "00001"  => C167_WR_EN <= X"0000_0002";
 		when "00010"  => C167_WR_EN <= X"0000_0004";
@@ -134,7 +108,7 @@ if ctrl_data='0' and read_write='0' then
 	end case;
 elsif ctrl_data='0' and read_write='1' then	
    C167_WR_EN <= X"0000_0000";	
-	case c(4 downto 0) is
+	case ctrl_reg(4 downto 0) is
 		when "00000"  => C167_RD_EN <= X"0000_0001";
 		when "00001"  => C167_RD_EN <= X"0000_0002";
 		when "00010"  => C167_RD_EN <= X"0000_0004";

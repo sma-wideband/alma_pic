@@ -51,27 +51,43 @@ entity opb_vdif_interface is
       uCLK0     : in std_logic; -- clock for microprocessor bus
 
       -- other ports
-      clk_in_p        : in std_logic;
+      clk_in_p        : in std_logic;  --correlator 125 MHz clock
       clk_in_n        : in std_logic;
-      sum_in_p        : in std_logic_vector(63 downto 0);
-      sum_in_n        : in std_logic_vector(63 downto 0);
-      adc_clk         : in std_logic;
-      OnePPS          : in std_logic;
-      TE              : in std_logic;
-      DataRdy         : in std_logic_vector(nch-1 downto 0);
-      TimeCode        : in std_logic_vector(31 downto 0);
-      dataIn          : in std_logic_vector(63 downto 0);
+      adc_clk         : in std_logic;  --alternate clock, connected to on-board 100MHz, for bench testing      
+      sum_data_p      : in std_logic_vector(63 downto 0); --sum_data_p(0) is the LSB of channel 0; sum_data_p(63) is the MSB of channel 31, etc.
+      sum_data_n      : in std_logic_vector(63 downto 0);
+      PPS_Maser_p     : in std_logic;  --1-PPS from Maser for sanity check of the locally generated 1-PPS from the TE
+      PPS_Maser_n     : in std_logic;
+      PPS_GPS_p       : in std_logic;  --1-PPS from GPS for sanity check of the locally generated 1-PPS from the TE
+      PPS_GPS_n       : in std_logic;
+      PPS_PIC_p       : out std_logic;  --local 1-PPS generated 1-PPS from the TE, for output to test point on 1-PPS buffer card
+      PPS_PIC_n       : out std_logic;
+      TE_p            : in std_logic;   --the 48 msec TE signal from the QCC, called TIME_IN on PIC schematic
+      TE_n            : in std_logic;
+      TIME0           : out std_logic;  --the 48 msec TE signal to the microprocessor interrupt
+      DONE            : out std_logic;  --signal to indicate to microprocessor that FPGA is programmed.  Drive low      
+--      DataRdy         : in std_logic_vector(nch-1 downto 0);
+--      TimeCode        : in std_logic_vector(31 downto 0);
+--      dataIn          : in std_logic_vector(63 downto 0);  --data for VLBA; need to delete sometime
 
       -- ten GbE ports
       To10GbeTxData   : out std_logic_vector(63 downto 0);
       To10GbeTxDataValid  : out std_logic;
       To10GbeTxEOF    : out std_logic;
-
-      -- test port
-      test_port       : out std_logic_vector(31 downto 0);
+      
+      --DAC ports
+      DAC_CLK_p       : out std_logic;
+      DAC_CLK_n       : out std_logic;
+      DAC_IN_A        : out std_logic_vector(3 downto 0);      
+      DAC_IN_B        : out std_logic_vector(3 downto 0);
+--      DAC_IN_A0       : out std_logic_vector(3 downto 0);  --test to try to get DAC data bits working
+      
+      -- test ports
+      test_port_out   : out std_logic_vector(31 downto 0);
+      test_port_in0   : in  std_logic_vector(31 downto 0);
+      test_port_in1   : in  std_logic_vector(31 downto 0);                  
       ROACHTP         : out std_logic_vector(1 downto 0);
-      TP_p            : in std_logic_vector(5 downto 0)     
---      TP_n            : out std_logic_vector(3 downto 0)           
+      ROUTB           : out std_logic_vector(3 downto 0)  --test points to JR1           
       
     );
 end entity opb_vdif_interface;
@@ -81,54 +97,53 @@ is
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 
-    component vdif_input_sel
-        port
-        (
-            wrClk       : in std_logic;
-            rdClk       : in std_logic;
-            reset       : in std_logic;     -- global reset
-            valid       : in std_logic;     -- valid data started
-            dataRdy     : in std_logic;
-            rdFifoEna   : in std_logic;
-            cplxFlg     : in std_logic;
-            numBit      : in std_logic_vector(4 downto 0);
+--    component vdif_input_sel
+--        port
+--        (
+--            wrClk       : in std_logic;
+--            rdClk       : in std_logic;
+--            reset       : in std_logic;     -- global reset
+--            valid       : in std_logic;     -- valid data started
+--            dataRdy     : in std_logic;
+--            rdFifoEna   : in std_logic;
+--            cplxFlg     : in std_logic;
+--            numBit      : in std_logic_vector(4 downto 0);
 
-            data_in     : in std_logic_vector(15 downto 0);
+--            data_in     : in std_logic_vector(15 downto 0);
 
-            full        : out std_logic;
-            prog_full   : out std_logic;
-            data_out    : out std_logic_vector(63 downto 0)
-        );
-    end component vdif_input_sel;
+--            full        : out std_logic;
+--            prog_full   : out std_logic;
+--            data_out    : out std_logic_vector(63 downto 0)
+--        );
+--    end component vdif_input_sel;
 
-    component vdif_formatter is
-        port
-        (
-            Clk         : in std_logic; -- tx clock
-            Grs         : in std_logic;
-            MstrEna     : in std_logic;
-            Header      : in vdifHdr;   -- 8 x 32 bits
-            FifoData    : in std_logic_vector(63 downto 0);
+--    component vdif_formatter is
+--        port
+--        (
+--            Clk         : in std_logic; -- tx clock
+--            Grs         : in std_logic;
+--            MstrEna     : in std_logic;
+--            Header      : in vdifHdr;   -- 8 x 32 bits
+--            FifoData    : in std_logic_vector(63 downto 0);
 
-            FifoEna             : out std_logic;
-            To10GbeTxData       : out std_logic_vector(63 downto 0);
-            To10GbeTxDataValid  : out std_logic;
-            To10GbeTxEOF        : out std_logic
-        );
+--            FifoEna             : out std_logic;
+--            To10GbeTxData       : out std_logic_vector(63 downto 0);
+--            To10GbeTxDataValid  : out std_logic;
+--            To10GbeTxEOF        : out std_logic
+--        );
+--    end component vdif_formatter;
 
-    end component vdif_formatter;
-
-    component vdif_data
-      generic (
-        SAMPLES_IN : integer);          -- samples in
-      port (
-        clk_p      : in  std_logic;
-        clk_n      : in  std_logic;
-        sum_data_p : in  std_logic_vector(63 downto 0);
-        sum_data_n : in  std_logic_vector(63 downto 0);
-        clk_out    : out std_logic;
-        data_out   : out std_logic_vector(63 downto 0));
-    end component vdif_data;
+--    component vdif_data
+--      generic (
+--        SAMPLES_IN : integer);          -- samples in
+--      port (
+--        clk_p      : in  std_logic;
+--        clk_n      : in  std_logic;
+--        sum_data_p : in  std_logic_vector(63 downto 0);
+--        sum_data_n : in  std_logic_vector(63 downto 0);
+--        clk_out    : out std_logic;
+--        data_out   : out std_logic_vector(63 downto 0));
+--    end component vdif_data;
     
     component  c167_interface
 	     port(
@@ -144,6 +159,14 @@ is
 		   C167_CLK				: out std_logic	-- C167 clock signal, the first 4 clocks were removed.
 	);
   end component c167_interface;
+  
+    component mux64
+       port(
+            data_sel:	in std_logic_vector(5 downto 0);
+            data_in:	in std_logic_vector(63 downto 0);
+            data_out:		out std_logic
+       );
+    end component mux64;
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
     -- maximum number of channels that can be used. Initially set to 7.
@@ -289,12 +312,11 @@ end record HdrArray;
     signal ppsFinish        : std_logic;
 
     -- data capture signals
-    signal clk_p       : std_logic;
-    signal clk_n       : std_logic;
-    signal sum_data_p  : std_logic_vector(63 downto 0);
-    signal sum_data_n  : std_logic_vector(63 downto 0);
-    signal clk_out     : std_logic;
-    signal sum_out    : std_logic_vector(63 downto 0);
+    signal clk_p         : std_logic;
+    signal clk_n         : std_logic;   
+    signal sum_data    : std_logic_vector(63 downto 0);  
+    signal clk_out       : std_logic;
+    signal sum_out       : std_logic_vector(63 downto 0);
 
     --signals for opb acknowledge
     signal ackSigW         :  std_logic := '0';
@@ -307,7 +329,13 @@ end record HdrArray;
     signal test_port_sig : std_logic_vector(31 downto 0) := x"0000_0000";
     signal test_c_baseaddr : std_logic_vector(31 downto 0) := C_BASEADDR;
     signal test_c_highaddr : std_logic_vector(31 downto 0) := C_HIGHADDR;
-    
+    signal test_ctr        : std_logic_vector(7 downto 0)  := X"00";
+    signal test_ctr_fifo   : std_logic_vector(7 downto 0)  := X"00";    
+    signal C125_ds         : std_logic;                    -- for testing C125 clock     
+    signal C125            : std_logic;                    -- for testing C125 clock  
+    signal ROUTB_sig       : std_logic_vector(3 downto 0) := "0000";
+    signal TimeCode_sig    : std_logic_vector(31 downto 0) := X"0000_0000";
+        
     --C167 registers
     signal c167_reg0_sig     :std_logic_vector(7 downto 0);  --a few registers
     signal c167_reg1_sig     :std_logic_vector(7 downto 0);
@@ -317,6 +345,36 @@ end record HdrArray;
     signal data_to_cpu_sig   : std_logic_vector(7 downto 0);
     signal C167_RD_EN_sig    :std_logic_vector(31 downto 0); --one line goes high
     signal C167_WR_EN_sig    :std_logic_vector(31 downto 0); --one line goes high   
+    
+    --signals for DAC
+    signal DAC_CLK_p_sig        : std_logic;
+    signal DAC_CLK_n_sig        : std_logic; 
+    signal DAC_IN_A_sig         : std_logic_vector(3 downto 0) := "0000"; -- for DAC A
+    signal DAC_IN_B_sig         : std_logic_vector(3 downto 0) := "0000"; -- for DAC B
+--    signal DAC_IN_A0_sig        :std_logic_vector(3 downto 0) := X"0";
+    
+    -- system-timing-related signals
+    signal OnePPS               :std_logic := '0';
+    signal PPS_PIC_sig          :std_logic := '0'; --FPGA-derived 1-PPS based on TE and command from CCC
+    signal TE_sig               :std_logic := '0';
+    signal TIME0_sig            :std_logic := '0';
+    signal PPS_Maser_sig        :std_logic;  --1-PPS from Maser for sanity check of the locally generated 1-PPS from the TE
+    signal PPS_GPS_sig          :std_logic;  --1-PPS from GPS for sanity check of the locally generated 1-PPS from the TE
+    signal CFIFO_Z1_sig         :std_logic;  --clock used for formatting at FIFO outputs, input to BUFG
+    signal CFIFO                :std_logic;  --clock used for formatting at FIFO outputs  
+    signal CLKFB_sig            :std_logic;  --MMC feedback
+    signal CLKFBSTOPPED_sig     :std_logic;  --clock feedback stopped test point from MMCM  
+    signal CLKINSTOPPED_sig     :std_logic;  --clock input stopped test point from MMCM
+    signal LOCKED_sig           :std_logic;  --clock locked test point from MMCM
+    signal RST_sig              :std_logic := '0';  --MMCM reset
+           
+    
+            
+    
+   
+    --status signals
+    signal DONE_sig             :std_logic := '0';
+        
 
 
 
@@ -326,57 +384,249 @@ begin
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 
+--I/O buffers
+  -- buffer for 125 MHz correlator clock
+  C125_inst : IBUFGDS
+  generic map (
+    DIFF_TERM => TRUE, -- Differential Termination
+    IBUF_LOW_PWR => TRUE, -- Low power (TRUE) vs. performance (FALSE) setting for refernced I/O standards
+    IOSTANDARD => "DEFAULT")
+  port map (
+    O => C125_ds, -- Clock buffer output
+    I => clk_in_p, -- Diff_p clock buffer input (connect directly to top-level port)
+    IB => clk_in_n -- Diff_n clock buffer input (connect directly to top-level port)
+  );
+ 
+  C125_BUFG_inst : BUFG
+  port map (
+    O => C125,    -- 1-bit output: 125 MHz Data Clock buffer output
+    I => C125_ds  -- 1-bit input: Clock buffer input
+  );
+ 
+   CFIFO_BUFG_inst : BUFG
+  port map (
+    O => CFIFO,        -- 1-bit output: FIFO Clock buffer output
+    I => CFIFO_Z1_sig  -- 1-bit input: Clock buffer input
+  );
+ 
+  -- buffers for sum data
+
+   sum_data_inputs: for i in 0 to 63 generate  -- connect differential buffers to signals
+   begin
+   
+    sum_data_bufs: IBUFDS
+   generic map (
+      CAPACITANCE => "DONT_CARE", -- "LOW", "NORMAL", "DONT_CARE" (Virtex-4 only)
+      DIFF_TERM => TRUE, -- Differential Termination (Virtex-4/5, Spartan-3E/3A)
+      IBUF_DELAY_VALUE => "0", -- Specify the amount of added input delay for buffer,
+      IFD_DELAY_VALUE => "AUTO", -- Specify the amount of added delay for input register,
+      IOSTANDARD => "DEFAULT")
+      
+   port map (
+      O => sum_data(i), -- Clock buffer output
+      I => sum_data_p(i), -- Diff_p clock buffer input (connect directly to top-level port)
+      IB => sum_data_n(i) -- Diff_n clock buffer input (connect directly to top-level port)
+   );   
+   end generate sum_data_inputs;   
+   
+    -- Output for DAC CLK
+   OBUFDS_DAC_CLK : OBUFDS
+     generic map (
+       IOSTANDARD => "DEFAULT")
+     port map (
+       O  => DAC_CLK_p_sig, -- Diff_p output (connect directly to top-level port)
+       OB => DAC_CLK_n_sig, -- Diff_n output (connect directly to top-level port)
+       I  => test_ctr(7) -- Buffer input
+     ); 
+
+    -- Output for DAC data; single ended so don't need to specify buffers here    
+
+    --connect signals to ports
+    DAC_CLK_p <= DAC_CLK_p_sig;
+    DAC_CLK_n <= DAC_CLK_n_sig;      
+    DAC_IN_A  <= DAC_IN_A_sig;
+    DAC_IN_B  <= DAC_IN_B_sig;
+--    DAC_IN_A0  <= DAC_IN_A0_sig;            
+
+   -- buffer for TE signal
+
+   
+    TE_buf: IBUFDS
+   generic map (
+      CAPACITANCE => "DONT_CARE", -- "LOW", "NORMAL", "DONT_CARE" (Virtex-4 only)
+      DIFF_TERM => TRUE, -- Differential Termination (Virtex-4/5, Spartan-3E/3A)
+      IBUF_DELAY_VALUE => "0", -- Specify the amount of added input delay for buffer,
+      IFD_DELAY_VALUE => "AUTO", -- Specify the amount of added delay for input register,
+      IOSTANDARD => "DEFAULT")
+      
+   port map (
+      O => TE_sig, -- TE buffer output
+      I => TE_p, -- Diff_p clock buffer input (connect directly to top-level port)
+      IB => TE_n -- Diff_n clock buffer input (connect directly to top-level port)
+   );  
+   
+   
+    PIC_1PPS_BUF: OBUFDS
+     generic map (
+       IOSTANDARD => "DEFAULT")
+     port map (
+       O  => PPS_PIC_p, -- Diff_p output (connect directly to top-level port)
+       OB => PPS_PIC_n, -- Diff_n output (connect directly to top-level port)
+       I  => PPS_PIC_sig -- Buffer input
+     ); 
+     
+   Maser_buf: IBUFDS
+   generic map (
+      CAPACITANCE => "DONT_CARE", -- "LOW", "NORMAL", "DONT_CARE" (Virtex-4 only)
+      DIFF_TERM => TRUE, -- Differential Termination (Virtex-4/5, Spartan-3E/3A)
+      IBUF_DELAY_VALUE => "0", -- Specify the amount of added input delay for buffer,
+      IFD_DELAY_VALUE => "AUTO", -- Specify the amount of added delay for input register,
+      IOSTANDARD => "DEFAULT")
+      
+   port map (
+      O => PPS_Maser_sig, -- TE buffer output
+      I => PPS_Maser_p, -- Diff_p clock buffer input (connect directly to top-level port)
+      IB => PPS_Maser_n -- Diff_n clock buffer input (connect directly to top-level port)
+   );  
+   
+   GPS_buf: IBUFDS
+   generic map (
+      CAPACITANCE => "DONT_CARE", -- "LOW", "NORMAL", "DONT_CARE" (Virtex-4 only)
+      DIFF_TERM => TRUE, -- Differential Termination (Virtex-4/5, Spartan-3E/3A)
+      IBUF_DELAY_VALUE => "0", -- Specify the amount of added input delay for buffer,
+      IFD_DELAY_VALUE => "AUTO", -- Specify the amount of added delay for input register,
+      IOSTANDARD => "DEFAULT")
+      
+   port map (
+      O => PPS_GPS_sig, -- TE buffer output
+      I => PPS_GPS_p, -- Diff_p clock buffer input (connect directly to top-level port)
+      IB => PPS_GPS_n -- Diff_n clock buffer input (connect directly to top-level port)
+   ); 
+   
+--***********************************************************************************
+-- MMCM_ADV: Advanced Mixed Mode Clock Manager
+-- Virtex-6
+-- Xilinx HDL Libraries Guide, version 13.2
+-- use to generate formatting clock CFIFO
+MMCM_ADV_inst : MMCM_ADV
+generic map (
+BANDWIDTH => "LOW", -- Jitter programming ("HIGH","LOW","OPTIMIZED"); must use LOW when Fpfd < 135 MHz
+CLKFBOUT_MULT_F => 8.0, -- Multiply value for all CLKOUT (5.0-64.0); keep as low as possible; 600 <= Fvco <= 1200 MHz
+CLKFBOUT_PHASE => 0.0, -- Phase offset in degrees of CLKFB (0.00-360.00).
+-- CLKIN_PERIOD: Input clock period in ns to ps resolution (i.e. 33.333 is 30 MHz).
+CLKIN1_PERIOD => 8.000,
+CLKIN2_PERIOD => 10.000,
+CLKOUT0_DIVIDE_F => 7.0, -- Divide amount for CLKOUT0 (1.000-128.000).
+-- CLKOUT0_DUTY_CYCLE - CLKOUT6_DUTY_CYCLE: Duty cycle for CLKOUT outputs (0.01-0.99).
+CLKOUT0_DUTY_CYCLE => 0.5,
+CLKOUT1_DUTY_CYCLE => 0.5,
+CLKOUT2_DUTY_CYCLE => 0.5,
+CLKOUT3_DUTY_CYCLE => 0.5,
+CLKOUT4_DUTY_CYCLE => 0.5,
+CLKOUT5_DUTY_CYCLE => 0.5,
+CLKOUT6_DUTY_CYCLE => 0.5,
+-- CLKOUT0_PHASE - CLKOUT6_PHASE: Phase offset for CLKOUT outputs (-360.000-360.000).
+CLKOUT0_PHASE => 0.0,
+CLKOUT1_PHASE => 0.0,
+CLKOUT2_PHASE => 0.0,
+CLKOUT3_PHASE => 0.0,
+CLKOUT4_PHASE => 0.0,
+CLKOUT5_PHASE => 0.0,
+CLKOUT6_PHASE => 0.0,
+-- CLKOUT1_DIVIDE - CLKOUT6_DIVIDE: Divide amount for CLKOUT (1-128)
+CLKOUT1_DIVIDE => 128,
+CLKOUT2_DIVIDE => 128,
+CLKOUT3_DIVIDE => 128,
+CLKOUT4_DIVIDE => 128,
+CLKOUT5_DIVIDE => 128,
+CLKOUT6_DIVIDE => 128,
+CLKOUT4_CASCADE => FALSE, -- Cascase CLKOUT4 counter with CLKOUT6 (TRUE/FALSE)
+CLOCK_HOLD => FALSE, -- Hold VCO Frequency (TRUE/FALSE)
+COMPENSATION => "ZHOLD", -- "ZHOLD", "INTERNAL", "EXTERNAL", "CASCADE" or "BUF_IN"
+DIVCLK_DIVIDE => 1, -- Master division value (1-80); keep as low as possible
+-- REF_JITTER: Reference input jitter in UI (0.000-0.999).
+REF_JITTER1 => 0.100,
+REF_JITTER2 => 0.100,
+STARTUP_WAIT => FALSE, -- Not supported. Must be set to FALSE.
+-- USE_FINE_PS: Fine phase shift enable (TRUE/FALSE)
+CLKFBOUT_USE_FINE_PS => FALSE,
+CLKOUT0_USE_FINE_PS => FALSE,
+CLKOUT1_USE_FINE_PS => FALSE,
+CLKOUT2_USE_FINE_PS => FALSE,
+CLKOUT3_USE_FINE_PS => FALSE,
+CLKOUT4_USE_FINE_PS => FALSE,
+CLKOUT5_USE_FINE_PS => FALSE,
+CLKOUT6_USE_FINE_PS => FALSE
+)
+port map (
+-- Clock Outputs: 1-bit (each) output: User configurable clock outputs
+CLKOUT0 => CFIFO_Z1_sig, -- 1-bit output: CLKOUT0 output
+CLKOUT0B => OPEN, -- 1-bit output: Inverted CLKOUT0 output
+CLKOUT1 => OPEN, -- 1-bit output: CLKOUT1 output
+CLKOUT1B => OPEN, -- 1-bit output: Inverted CLKOUT1 output
+CLKOUT2 => OPEN, -- 1-bit output: CLKOUT2 output
+CLKOUT2B => OPEN, -- 1-bit output: Inverted CLKOUT2 output
+CLKOUT3 => OPEN, -- 1-bit output: CLKOUT3 output
+CLKOUT3B => OPEN, -- 1-bit output: Inverted CLKOUT3 output
+CLKOUT4 => OPEN, -- 1-bit output: CLKOUT4 output
+CLKOUT5 => OPEN, -- 1-bit output: CLKOUT5 output
+CLKOUT6 => OPEN, -- 1-bit output: CLKOUT6 output
+-- DRP Ports: 16-bit (each) output: Dynamic reconfigration ports
+DO => OPEN, -- 16-bit output: DRP data output
+DRDY => OPEN, -- 1-bit output: DRP ready output
+-- Dynamic Phase Shift Ports: 1-bit (each) output: Ports used for dynamic phase shifting of the outputs
+PSDONE => OPEN, -- 1-bit output: Phase shift done output
+-- Feedback Clocks: 1-bit (each) output: Clock feedback ports
+CLKFBOUT => CLKFB_sig, -- 1-bit output: Feedback clock output
+CLKFBOUTB => OPEN, -- 1-bit output: Inverted CLKFBOUT
+-- Status Ports: 1-bit (each) output: MMCM status ports
+CLKFBSTOPPED => CLKFBSTOPPED_sig, -- 1-bit output: Feedback clock stopped output
+CLKINSTOPPED => CLKINSTOPPED_sig, -- 1-bit output: Input clock stopped output
+LOCKED => LOCKED_sig, -- 1-bit output: LOCK output
+-- Clock Inputs: 1-bit (each) input: Clock inputs
+CLKIN1 => adc_clk, -- 1-bit input: Primary clock input
+CLKIN2 => C125, -- 1-bit input: Secondary clock input
+-- Control Ports: 1-bit (each) input: MMCM control ports
+CLKINSEL => '1', -- 1-bit input: Clock select input
+PWRDWN => '0', -- 1-bit input: Power-down input
+RST => RST_sig, -- 1-bit input: Reset input
+-- DRP Ports: 7-bit (each) input: Dynamic reconfigration ports
+DADDR => "0000000", -- 7-bit input: DRP adrress input
+DCLK => '0', -- 1-bit input: DRP clock input
+DEN => '0', -- 1-bit input: DRP enable input
+DI => X"0000", -- 16-bit input: DRP data input
+DWE => '0', -- 1-bit input: DRP write enable input
+-- Dynamic Phase Shift Ports: 1-bit (each) input: Ports used for dynamic phase shifting of the outputs
+PSCLK => '0', -- 1-bit input: Phase shift clock input
+PSEN => '0', -- 1-bit input: Phase shift enable input
+PSINCDEC => '0', -- 1-bit input: Phase shift increment/decrement input
+-- Feedback Clocks: 1-bit (each) input: Clock feedback ports
+CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
+);
+-- End of MMCM_ADV_inst instantiation
+
+--***********************************************************************************        
+
   -- connect test ports
-  test_port <= test_port_sig;
-  ROACHTP <= test_port_sig(6 downto 5);
-  --TP_p    <= test_port_sig(10 downto 5);
+  test_port_sig <= test_port_in0;  
+  test_port_out <= test_port_sig;
+  ROUTB         <= ROUTB_sig;
+   
+  --connect misc signals
+  DONE           <= DONE_sig;          
+  
+
 
   -- C167 connections
   CD_T <=  NOT RnW;
-
-  --buffers for differential IO
---  OBUFDS_inst_3 : OBUFDS
---  generic map (
---  IOSTANDARD => "LVCMOS15")
---  port map (
---    O  => TP_p(3), -- Diff_p output (connect directly to top-level port)
---    OB => TP_n(3), -- Diff_n output (connect directly to top-level port)
---    I  => test_port_sig(6) -- Buffer input
---  );
---  OBUFDS_inst_2 : OBUFDS
---  generic map (
---  IOSTANDARD => "LVCMOS15")
--- port map (
---    O  => TP_p(2), -- Diff_p output (connect directly to top-level port)
---    OB => TP_n(2), -- Diff_n output (connect directly to top-level port)
---    I  => test_port_sig(5) -- Buffer input
---  );
---  OBUFDS_inst_1 : OBUFDS
---  generic map (
---  IOSTANDARD => "LVCMOS15")
--- port map (
---    O  => TP_p(1), -- Diff_p output (connect directly to top-level port)
---    OB => TP_n(1), -- Diff_n output (connect directly to top-level port)
---    I  => test_port_sig(4) -- Buffer input
---  );
---  OBUFDS_inst_0 : OBUFDS
---  generic map (
---  IOSTANDARD => "LVCMOS15")
---  port map (
---    O  => TP_p(0), -- Diff_p output (connect directly to top-level port)
---    OB => TP_n(0), -- Diff_n output (connect directly to top-level port)
---   I  => test_port_sig(3) -- Buffer input
---  );
-
   
+       
   -- connect clocks
   epb_clk <= OPB_Clk;
   clk_p <= clk_in_p;
   clk_n <= clk_in_n;
 
-  -- connect differential data lines
-  sum_data_p <= sum_in_p;
-  sum_data_n <= sum_in_n;
+
 
   -- connect OPB signals
   DeviceAddr(31 downto 0)       <= OPB_ABus(0 to 31);  --take care of the bit reversals in the OPB data bus
@@ -390,6 +640,9 @@ begin
   --generate opb acknowledge signal
   --Sl_xferAck <= (ackSigR AND NOT ackSigRZ1) OR (ackSigW AND NOT ackSigWZ1);
   --xferAck_sig <= ackSigR OR ackSigW;
+  
+  --connect DAC signals
+  
 
   -- EPB register access process
     RegisterAccess : process(OPB_Rst, epb_clk, OPB_select,
@@ -621,9 +874,9 @@ begin
     -- wait for time to start.
     -- TimeCode is clocked with onePPS
     -- ValidFlag indicates in test time
-    valid_proc: process(TimeCode, DTMOnReg, DTMOffReg, epb_clk)
+    valid_proc: process(TimeCode_sig, DTMOnReg, DTMOffReg, epb_clk)
     begin
-        if (TimeCode >= DTMOnReg and TimeCode < DTMOffReg) then
+        if (TimeCode_sig >= DTMOnReg and TimeCode_sig < DTMOffReg) then
             ValidFlag <= '1';
         else
             ValidFlag <= '0';
@@ -639,15 +892,15 @@ begin
     -- "01" : off/waiting to turn on
     -- "10" : on
     -- "11" : off/done
-    dtm_proc:  process(DTMOnReg, ValidFlag_epb, TimeCode, DTMOffReg)
+    dtm_proc:  process(DTMOnReg, ValidFlag_epb, TimeCode_sig, DTMOffReg)
     begin
         if (DTMOnReg = X"00000000") then
             DTMStatus   <= ValidFlag_epb & "00";    --ready (init)
-        elsif (TimeCode < DTMOnReg) then
+        elsif (TimeCode_sig < DTMOnReg) then
             DTMStatus <= ValidFlag_epb & "10";      --waiting
-        elsif (TimeCode < DTMOffReg) then
+        elsif (TimeCode_sig < DTMOffReg) then
             DTMStatus <= ValidFlag_epb & "01";      --transmitting
-        else --if (TimeCode >= DTMOffReg) then
+        else --if (TimeCode_sig >= DTMOffReg) then
             DTMStatus   <= ValidFlag_epb & "11";    --finished (rdy)
         end if;
     end process dtm_proc;
@@ -731,7 +984,8 @@ begin
                 OnePPSDelayCount <= x"0000";
                 ValidFlag_adc <= '0';
             elsif (OnePPSDelayCount <= TotalDelay) then
-                if (DataRdy(0) = '1') then
+--                if (DataRdy(0) = '1') then    ##comment out to get rid of DataRdy port; eventually this whole process will disappear
+                if (ackSigW = '1') then
                     OnePPSDelayCount <= OnePPSDelayCount + 1;
                 end if;
             else
@@ -915,25 +1169,25 @@ HdrAry.Persnlity<= P_TYPE;
 
 -------------------------------------------------------------------------------
 -- Input select and enable
-  selIn    : for i in 0 to nch-1 generate
-    chSel   : vdif_input_sel
-    port map(
-        wrClk       =>  adc_clk,        --: in std_logic;
-        rdClk       =>  OPB_Clk,        --: in std_logic;
-        reset       =>  OPB_Rst,            --: in std_logic;
-        valid       =>  ValidA(i),      --: in std_logic;
-        dataRdy     =>  DataRdy(i),     --: in std_logic;
-        rdFifoEna   =>  rdFifoEna(i),   --: in std_logic;
-        cplxFlg     =>  ComplexFlags(i),--: in std_logic;
-        numBit      =>  Bits_SampA(i),  --: in std_logic_vector(4 downto 0);
+--  selIn    : for i in 0 to nch-1 generate
+--    chSel   : vdif_input_sel
+--    port map(
+--        wrClk       =>  adc_clk,        --: in std_logic;
+--        rdClk       =>  OPB_Clk,        --: in std_logic;
+--        reset       =>  OPB_Rst,            --: in std_logic;
+--        valid       =>  ValidA(i),      --: in std_logic;
+--        dataRdy     =>  DataRdy(i),     --: in std_logic;
+--        rdFifoEna   =>  rdFifoEna(i),   --: in std_logic;
+--        cplxFlg     =>  ComplexFlags(i),--: in std_logic;
+--        numBit      =>  Bits_SampA(i),  --: in std_logic_vector(4 downto 0);
 
-        data_in     =>  dataIn(i*16+15 downto i*16),      --: in std_logic_vector(15 downto 0);
+--        data_in     =>  dataIn(i*16+15 downto i*16),      --: in std_logic_vector(15 downto 0);
 
-        full        =>  full(i),        --: out std_logic
-        prog_full   =>  prog_full(i),   --: out std_logic;
-        data_out    =>  data_out(i)     --: out std_logic_vector(63 downto 0)
-    );
-    end generate;
+--        full        =>  full(i),        --: out std_logic
+--        prog_full   =>  prog_full(i),   --: out std_logic;
+--        data_out    =>  data_out(i)     --: out std_logic_vector(63 downto 0)
+--    );
+--    end generate;
 
     ckff: process(OPB_Clk, full, ValidFlag_sys)
     begin
@@ -948,23 +1202,23 @@ HdrAry.Persnlity<= P_TYPE;
 
 -------------------------------------------------------------------------------
 --Formatter
-CurrData <= data_out(currCh);
+--CurrData <= data_out(currCh);
 
     --format a single channel when FifoRdy says there are 625 words in fifo
-    fmt_ch : vdif_formatter
-        port map
-        (
-            Clk         =>  OPB_Clk,            --: in std_logic;
-            Grs         =>  OPB_Rst,                --: in std_logic;
-            MstrEna     =>  FmtrEna,            --: in std_logic;
-            Header      =>  HdrBlk,             --: in vdifHdr;
-            FifoData    =>  CurrData,           --: in slvector(63 downto 0);
+--    fmt_ch : vdif_formatter
+--        port map
+--        (
+--            Clk         =>  OPB_Clk,            --: in std_logic;
+--            Grs         =>  OPB_Rst,                --: in std_logic;
+--            MstrEna     =>  FmtrEna,            --: in std_logic;
+--            Header      =>  HdrBlk,             --: in vdifHdr;
+--            FifoData    =>  CurrData,           --: in slvector(63 downto 0);
 
-            FifoEna             => FifoEna,     --: out std_logic;
-            To10GbeTxData       => To10GbeTxData,   --: out slv(63 downto 0);
-            To10GbeTxDataValid  => To10GbeTxDataValid,  --: out std_logic;
-            To10GbeTxEOF        => To10GbeTxEOF --: out std_logic
-        );
+--            FifoEna             => FifoEna,     --: out std_logic;
+--            To10GbeTxData       => To10GbeTxData,   --: out slv(63 downto 0);
+--            To10GbeTxDataValid  => To10GbeTxDataValid,  --: out std_logic;
+--            To10GbeTxEOF        => To10GbeTxEOF --: out std_logic
+--       );
 
 
 -------------------------------------------------------------------------------
@@ -1004,41 +1258,150 @@ CurrData <= data_out(currCh);
 	);
 	
 	--process for testing C167 interface
-	test_C167: process(C167_CLK_sig)
+	test_C167: process(C167_CLK_sig, C167_RD_EN_sig)
 	begin
 	
-	   if falling_edge(C167_CLK_sig) then
-   	   case (C167_RD_EN_sig) is
-           when X"00000001" => data_to_cpu_sig <= c167_reg0_sig;     
-           when X"00000002" => data_to_cpu_sig <= c167_reg1_sig;     
-           when X"00000004" => data_to_cpu_sig <= c167_reg2_sig;
-           when others  => data_to_cpu_sig <= (others => '0');  
-       end case;       
-     end if;
+
+   	case (C167_RD_EN_sig) is
+        when X"00000001" => data_to_cpu_sig <= c167_reg0_sig;     
+        when X"00000002" => data_to_cpu_sig <= c167_reg1_sig;     
+        when X"00000004" => data_to_cpu_sig <= c167_reg2_sig;
+        when others  => data_to_cpu_sig <= (others => '0');  
+    end case;       
+    
 
 	   if rising_edge(C167_CLK_sig) then
    	   case (C167_WR_EN_sig) is
-          when X"00000001" => c167_reg0_sig <= data_from_cpu_sig;     
-          when X"00000002" => c167_reg1_sig <= data_from_cpu_sig;   
-          when X"00000004" => c167_reg2_sig <= data_from_cpu_sig;
+          when X"0000_0001" => c167_reg0_sig <= data_from_cpu_sig;     
+          when X"0000_0002" => c167_reg1_sig <= data_from_cpu_sig;   
+          when X"0000_0004" => c167_reg2_sig <= data_from_cpu_sig;
           when others  => null;  
        end case;
         
-       if(C167_WR_EN_sig > 0) then
-          test_port_sig(7 downto 0) <= test_port_sig(7 downto 0) + 1;      
-       end if;
+--       if(C167_WR_EN_sig > 0) then
+--          test_port_sig(7 downto 0) <= test_port_sig(7 downto 0) + 1;      
+--       end if;
 
-       if(C167_RD_EN_sig > 0) then
-          test_port_sig(15 downto 8) <= test_port_sig(15 downto 8) + 1;
-       end if;
+--       if(C167_RD_EN_sig > 0) then
+--          test_port_sig(15 downto 8) <= test_port_sig(15 downto 8) + 1;
+--       end if;
         
-       test_port_sig(31 downto 16) <= test_port_sig(31 downto 16) + 1;
+--       test_port_sig(31 downto 16) <= test_port_sig(31 downto 16) + 1;
      end if;    
                                  
 	end process;
 	
+	-------------------------------------------------------------------------------
+--mux64 for ROACHTP0
+
+  mux_rtp0 : mux64
+  	     port map (
+            data_sel => test_port_in0(5 downto 0),
+            data_in(0)  => test_ctr(7),
+            data_in(1) => CLKFBSTOPPED_sig,
+            data_in(2) => CLKINSTOPPED_sig,
+            data_in(3) => LOCKED_sig,
+            data_in(4) => c167_reg0_sig(0),
+            data_in(5) => c167_reg0_sig(1),
+            data_in(6) => c167_reg0_sig(2),
+            data_in(7) => c167_reg0_sig(3),
+            data_in(8) => c167_reg0_sig(4),
+            data_in(9) => c167_reg0_sig(5),
+            data_in(10) => c167_reg0_sig(6),
+            data_in(11) => c167_reg0_sig(7),
+            data_in(63 downto 12) => (others => '0'),
+            data_out => ROACHTP(0)	     
+  	     );
+  	     
+--mux64 for ROACHTP1
+
+  mux_rtp1 : mux64
+  	     port map (
+            data_sel => test_port_in0(13 downto 8),
+            data_in(0) => test_ctr_fifo(7),
+            data_in(1) => sum_data(1),
+            data_in(2) => sum_data(2),
+            data_in(3) => sum_data(3),
+            data_in(4) => sum_data(4),
+            data_in(5) => sum_data(5),
+            data_in(6) => sum_data(6),
+            data_in(7) => sum_data(7),
+            data_in(8) => sum_data(8),
+            data_in(9) => sum_data(9),
+            data_in(10) => sum_data(10),
+            data_in(11) => sum_data(11),
+            data_in(12) => sum_data(12),
+            data_in(13) => sum_data(13),
+            data_in(14) => sum_data(14),
+            data_in(15) => sum_data(15),
+            data_in(16) => sum_data(16),
+            data_in(17) => sum_data(17),
+            data_in(18) => sum_data(18),
+            data_in(19) => sum_data(19),
+            data_in(20) => sum_data(20),
+            data_in(21) => sum_data(21),
+            data_in(22) => sum_data(22),
+            data_in(23) => sum_data(23),
+            data_in(24) => sum_data(24),
+            data_in(25) => sum_data(25),
+            data_in(26) => sum_data(26),
+            data_in(27) => sum_data(27),
+            data_in(28) => sum_data(28),
+            data_in(29) => sum_data(29),
+            data_in(30) => sum_data(30),
+            data_in(31) => sum_data(31),
+            data_in(32) => sum_data(32),
+            data_in(33) => sum_data(33),
+            data_in(34) => sum_data(34),
+            data_in(35) => sum_data(35),
+            data_in(36) => sum_data(36),
+            data_in(37) => sum_data(37),
+            data_in(38) => sum_data(38),
+            data_in(39) => sum_data(39),
+            data_in(40) => sum_data(40),
+            data_in(41) => sum_data(41),
+            data_in(42) => sum_data(42),
+            data_in(43) => sum_data(43),
+            data_in(44) => sum_data(44),
+            data_in(45) => sum_data(45),
+            data_in(46) => sum_data(46),
+            data_in(47) => sum_data(47),
+            data_in(48) => sum_data(48),
+            data_in(49) => sum_data(49),
+            data_in(50) => sum_data(50),
+            data_in(51) => sum_data(51),
+            data_in(52) => sum_data(52),
+            data_in(53) => sum_data(53),
+            data_in(54) => sum_data(54),
+            data_in(55) => sum_data(55),
+            data_in(56) => sum_data(56),
+            data_in(57) => sum_data(57),
+            data_in(58) => sum_data(58),
+            data_in(59) => sum_data(59),
+            data_in(60) => sum_data(60),
+            data_in(61) => sum_data(61),
+            data_in(62) => sum_data(62),
+            data_in(63) => sum_data(63),
+            
+--            data_in(63 downto 8) => (others => '0'),
+            data_out => ROACHTP(1)
+  	     );  	     
 	
+--process for generating test frequencies
+get_tst_freq: process(C125)
+	begin
+	  if(rising_edge(adc_clk)) then
+	     test_ctr <= test_ctr + 1;
+	  end if;
+	end process;	
 	
+	--process for generating test frequencies
+get_tst_freq2: process(CFIFO)
+	begin
+	  if(rising_edge(CFIFO)) then
+	     test_ctr_fifo <= test_ctr_fifo + 1;
+	  end if;
+	end process;	
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 end architecture vdif_arch;

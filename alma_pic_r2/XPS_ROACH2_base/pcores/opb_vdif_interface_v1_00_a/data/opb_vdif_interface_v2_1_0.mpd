@@ -73,14 +73,23 @@ PARAMETER nch = 0, DT = INTEGER
 	######################################
 	PORT clk_in_p  = "", DIR = I
 	PORT clk_in_n  = "", DIR = I
-	PORT sum_in_p  = "", DIR = I, VEC = [0:63]
-	PORT sum_in_n  = "", DIR = I, VEC = [0:63]
+	PORT sum_data_p  = "", DIR = I, VEC = [63:0]
+	PORT sum_data_n  = "", DIR = I, VEC = [63:0]
 	PORT adc_clk  = "", DIR = I
-        PORT OnePPS   = "", DIR = I
-	PORT TE       = "", DIR = I
-        PORT DataRdy  = "", DIR = I, VEC = [0:(nch-1)]
-        PORT TimeCode = "", DIR = I, VEC = [0:31]
-        PORT dataIn   = "", DIR = I, VEC = [0:63]
+  PORT PPS_Maser_p   = "", DIR = I
+  PORT PPS_Maser_n   = "", DIR = I
+  PORT PPS_GPS_p     = "", DIR = I
+  PORT PPS_GPS_n     = "", DIR = I
+  PORT PPS_PIC_p     = "", DIR = O        
+  PORT PPS_PIC_n     = "", DIR = O                
+	PORT TE_p          = "", DIR = I
+	PORT TE_n          = "", DIR = I
+  PORT TIME0         = "", DIR = O 	
+  PORT DONE          = "", DIR = O  
+
+#  PORT DataRdy  = "", DIR = I, VEC = [0:(nch-1)]
+#  PORT TimeCode = "", DIR = I, VEC = [0:31]
+#  PORT dataIn   = "", DIR = I, VEC = [0:63]
 
 
 	######################################
@@ -93,9 +102,22 @@ PARAMETER nch = 0, DT = INTEGER
 	######################################
 	## Test/debug ports
 	######################################
-	PORT test_port           = "", DIR = O, VEC = [0:31]
+	PORT test_port_out       = "", DIR = O, VEC = [0:31]
+	PORT test_port_in0       = "", DIR = I, VEC = [0:31]
+	PORT test_port_in1       = "", DIR = I, VEC = [0:31]			
 	PORT ROACHTP             = "", DIR = O, VEC = [0:1]
-	PORT TP_p                = "", DIR = I, VEC = [0:5]
-#	PORT TP_n                = "", DIR = O, VEC = [0:3]
+  PORT ROUTB               = "", DIR = O, VEC = [3:0] 
+
+
+	######################################
+	## DAC ports
+	######################################
+	PORT DAC_CLK_p       = "", DIR = O
+	PORT DAC_CLK_n       = "", DIR = O	
+	PORT DAC_IN_A        = "", DIR = O, VEC = [3:0]
+	PORT DAC_IN_B        = "", DIR = O, VEC = [3:0]	
+#	PORT DAC_IN_A0       = "", DIR = O, VEC = [3:0]	
+		
+
 
 END

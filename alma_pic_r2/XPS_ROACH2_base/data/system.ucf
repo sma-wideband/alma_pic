@@ -7,6 +7,8 @@ TIMESPEC TS_sys_clk_n = PERIOD sys_clk_n 100 MHz;
 Net epb_clk_in TNM_NET = epb_clk_in;
 TIMESPEC TS_epb_clk_in = PERIOD epb_clk_in 67 MHz;
 
+Net C125_clk_n TNM_NET = C125_clk_n;
+TIMESPEC TS_C125_clk_n = PERIOD C125_clk_n 125 MHz;
 
 CONFIG DCI_CASCADE = "14 13";
 CONFIG DCI_CASCADE = "23 22";
@@ -27,6 +29,12 @@ NET "sys_clk_p"          LOC = AP11;
 # aux clock (?? MHz)
 NET "aux_clk_n"          LOC = AW16;
 NET "aux_clk_p"          LOC = AV16;
+
+# correlator clock (125 MHz)
+NET "C125_clk_n"          LOC = P31;
+NET "C125_clk_p"          LOC = P30;
+
+
 
 # aux sync in/out
 #NET "aux_synci_n"        LOC = BB17;
@@ -398,15 +406,14 @@ NET "mgt_tx_p<3>"        LOC = BB3;
 
 NET "vdif_roachtp<0>"        LOC = H18    | IOSTANDARD = "LVCMOS15";
 NET "vdif_roachtp<1>"        LOC = F16    | IOSTANDARD = "LVCMOS15";
-NET "vdif_tp_p<5>"           LOC = K19    | IOSTANDARD = "LVCMOS15"; 
-NET "vdif_tp_p<4>"           LOC = L15    | IOSTANDARD = "LVCMOS15";  
-NET "vdif_tp_p<3>"           LOC = P17    | IOSTANDARD = "LVCMOS15";
-NET "vdif_tp_p<2>"           LOC = N16    | IOSTANDARD = "LVCMOS15";
-NET "vdif_tp_p<1>"           LOC = P16    | IOSTANDARD = "LVCMOS15";
-NET "vdif_tp_p<0>"           LOC = N15    | IOSTANDARD = "LVCMOS15";
-#NET "vdif_tp_p<0>"           LOC = AP3    | IOSTANDARD = "LVCMOS15";
-#NET "vdif_tp_n<0>"           LOC = AP4    | IOSTANDARD = "LVCMOS15";
+
+NET "vdif_routb<0>"          LOC = W37    | IOSTANDARD = "LVCMOS25";
+NET "vdif_routb<1>"          LOC = Y37    | IOSTANDARD = "LVCMOS25";
+NET "vdif_routb<2>"          LOC = AA32   | IOSTANDARD = "LVCMOS25";
+NET "vdif_routb<3>"          LOC = Y32    | IOSTANDARD = "LVCMOS25";
+
 #
+NET "vdif_uCLK0"     CLOCK_DEDICATED_ROUTE = FALSE;  # need this to avoid error since M27 is not a clock pin
 NET "vdif_uCLK0"     LOC = "M27"  | IOSTANDARD = "LVCMOS15";  # global 15, GPIO15
 NET "vdif_RnW"       LOC = "N20"  | IOSTANDARD = "LVCMOS15";  # global 11, GPIO11
 NET "vdif_CTRL_DATA" LOC = "M28"  | IOSTANDARD = "LVCMOS15";  # global 8, GPIO8
@@ -418,7 +425,177 @@ NET "vdif_CD<4>"     LOC = "L30"  | IOSTANDARD = "LVCMOS15";  # global 4, GPIO4
 NET "vdif_CD<5>"     LOC = "H30"  | IOSTANDARD = "LVCMOS15";  # global 5, GPIO5
 NET "vdif_CD<6>"     LOC = "M29"  | IOSTANDARD = "LVCMOS15";  # global 6, GPIO6
 NET "vdif_CD<7>"     LOC = "J30"  | IOSTANDARD = "LVCMOS15";  # global 7, GPIO7
- 
+
+NET "vdif_DAC_CLK_p"    LOC = "P27"; #DAC clock, common to both DACs
+NET "vdif_DAC_CLK_n"    LOC = "R27";
+#NET "vdif_DAC_IN_A0<0>"    LOC = "L31"   | IOSTANDARD = "LVCMOS25"; #data bits for DACs
+NET "vdif_DAC_IN_A<0>"  LOC = "L31"  | IOSTANDARD = "LVCMOS25"; #data bits for DACs
+NET "vdif_DAC_IN_A<1>"  LOC = "L32"  | IOSTANDARD = "LVCMOS25";
+NET "vdif_DAC_IN_A<2>"  LOC = "R28"  | IOSTANDARD = "LVCMOS25";
+NET "vdif_DAC_IN_A<3>"  LOC = "R29"  | IOSTANDARD = "LVCMOS25";
+NET "vdif_DAC_IN_B<0>"  LOC = "AA36" | IOSTANDARD = "LVCMOS25"; #data bits for DACs
+NET "vdif_DAC_IN_B<1>"  LOC = "AA37" | IOSTANDARD = "LVCMOS25";
+NET "vdif_DAC_IN_B<2>"  LOC = "AA35" | IOSTANDARD = "LVCMOS25";
+NET "vdif_DAC_IN_B<3>"  LOC = "Y35"  | IOSTANDARD = "LVCMOS25";
+
+NET "vdif_PPS_PIC_p"    LOC = "AA34"; #monitor for FPGA-generated 1-PPS
+NET "vdif_PPS_PIC_n"    LOC = "Y34";
+
+NET "vdif_TE_p"         LOC = "K37"; #TE signal from system, called TIME_IN on PIC
+NET "vdif_TE_n"         LOC = "L37";
+
+NET "vdif_TIME0"        LOC = "P28"  | IOSTANDARD = "LVCMOS25";
+
+NET "vdif_DONE"         LOC = "N28"  | IOSTANDARD = "LVCMOS25";
+
+NET "vdif_PPS_Maser_p"  LOC = "J42"; #Maser 1-PPS input
+NET "vdif_PPS_Maser_n"  LOC = "K42";
+
+NET "vdif_PPS_GPS_p"    LOC = "W30"; # GPS 1-PPS input
+NET "vdif_PPS_GPS_n"    LOC = "V30";
+
+
+NET "vdif_sum_data_p<0>" LOC = "B37";  #LSB from plane 0
+NET "vdif_sum_data_n<0>" LOC = "A37";
+NET "vdif_sum_data_p<1>" LOC = "B41";  #MSB from plane 0
+NET "vdif_sum_data_n<1>" LOC = "B42"; 
+NET "vdif_sum_data_p<2>" LOC = "D38";  #LSB from plane 1
+NET "vdif_sum_data_n<2>" LOC = "C38";
+NET "vdif_sum_data_p<3>" LOC = "A40";  #MSB from plane 1
+NET "vdif_sum_data_n<3>" LOC = "A41"; 
+NET "vdif_sum_data_p<4>" LOC = "E39";  #LSB from plane 2
+NET "vdif_sum_data_n<4>" LOC = "E38";
+NET "vdif_sum_data_p<5>" LOC = "B38";  #MSB from plane 2
+NET "vdif_sum_data_n<5>" LOC = "A39"; 
+NET "vdif_sum_data_p<6>" LOC = "F35";  #LSB from plane 3
+NET "vdif_sum_data_n<6>" LOC = "F36";
+NET "vdif_sum_data_p<7>" LOC = "D42";  #MSB from plane 3
+NET "vdif_sum_data_n<7>" LOC = "D41"; 
+NET "vdif_sum_data_p<8>" LOC = "C40";  #LSB from plane 4
+NET "vdif_sum_data_n<8>" LOC = "C41";
+NET "vdif_sum_data_p<9>" LOC = "B39";  #MSB from plane 4
+NET "vdif_sum_data_n<9>" LOC = "C39"; 
+NET "vdif_sum_data_p<10>" LOC = "F40";  #LSB from plane 5
+NET "vdif_sum_data_n<10>" LOC = "F41";
+NET "vdif_sum_data_p<11>" LOC = "F37";  #MSB from plane 5
+NET "vdif_sum_data_n<11>" LOC = "E37";
+NET "vdif_sum_data_p<12>" LOC = "E42";  #LSB from plane 6
+NET "vdif_sum_data_n<12>" LOC = "F42"; 
+NET "vdif_sum_data_p<13>" LOC = "H36";  #MSB from plane 6
+NET "vdif_sum_data_n<13>" LOC = "G36"; 
+NET "vdif_sum_data_p<14>" LOC = "D40";  #LSB from plane 7
+NET "vdif_sum_data_n<14>" LOC = "E40"; 
+NET "vdif_sum_data_p<15>" LOC = "F39";  #MSB from plane 7
+NET "vdif_sum_data_n<15>" LOC = "G39"; 
+NET "vdif_sum_data_p<16>" LOC = "G37";  #LSB from plane 8
+NET "vdif_sum_data_n<16>" LOC = "G38"; 
+NET "vdif_sum_data_p<17>" LOC = "G41";  #MSB from plane 8
+NET "vdif_sum_data_n<17>" LOC = "G42"; 
+NET "vdif_sum_data_p<18>" LOC = "H39";  #LSB from plane 9
+NET "vdif_sum_data_n<18>" LOC = "H38"; 
+NET "vdif_sum_data_p<19>" LOC = "G34";  #MSB from plane 9
+NET "vdif_sum_data_n<19>" LOC = "H34"; 
+NET "vdif_sum_data_p<20>" LOC = "H40";  #LSB from plane 10
+NET "vdif_sum_data_n<20>" LOC = "H41"; 
+NET "vdif_sum_data_p<21>" LOC = "J35";  #MSB from plane 10
+NET "vdif_sum_data_n<21>" LOC = "H35";
+NET "vdif_sum_data_p<22>" LOC = "K38";  #LSB from plane 11
+NET "vdif_sum_data_n<22>" LOC = "J38"; 
+NET "vdif_sum_data_p<23>" LOC = "L34";  #MSB from plane 11
+NET "vdif_sum_data_n<23>" LOC = "M34";
+NET "vdif_sum_data_p<24>" LOC = "K39";  #LSB from plane 12
+NET "vdif_sum_data_n<24>" LOC = "K40"; 
+NET "vdif_sum_data_p<25>" LOC = "K35";  #MSB from plane 12
+NET "vdif_sum_data_n<25>" LOC = "K34";
+NET "vdif_sum_data_p<26>" LOC = "J40";  #LSB from plane 13
+NET "vdif_sum_data_n<26>" LOC = "J41"; 
+NET "vdif_sum_data_p<27>" LOC = "N29";  #MSB from plane 13
+NET "vdif_sum_data_n<27>" LOC = "N30";
+NET "vdif_sum_data_p<28>" LOC = "K33";  #LSB from plane 14
+NET "vdif_sum_data_n<28>" LOC = "K32"; 
+NET "vdif_sum_data_p<29>" LOC = "L35";  #MSB from plane 14
+NET "vdif_sum_data_n<29>" LOC = "L36";
+NET "vdif_sum_data_p<30>" LOC = "J37";  #LSB from plane 15
+NET "vdif_sum_data_n<30>" LOC = "J36"; 
+NET "vdif_sum_data_p<31>" LOC = "M33";  #MSB from plane 15
+NET "vdif_sum_data_n<31>" LOC = "M32";
+NET "vdif_sum_data_p<32>" LOC = "N40";  #LSB from plane 16
+NET "vdif_sum_data_n<32>" LOC = "N41"; 
+NET "vdif_sum_data_p<33>" LOC = "L41";  #MSB from plane 16
+NET "vdif_sum_data_n<33>" LOC = "L42";
+NET "vdif_sum_data_p<34>" LOC = "N38";  #LSB from plane 17
+NET "vdif_sum_data_n<34>" LOC = "N39"; 
+NET "vdif_sum_data_p<35>" LOC = "M38";  #MSB from plane 17
+NET "vdif_sum_data_n<35>" LOC = "M39";
+NET "vdif_sum_data_p<36>" LOC = "N36";  #LSB from plane 18
+NET "vdif_sum_data_n<36>" LOC = "P37"; 
+NET "vdif_sum_data_p<37>" LOC = "M41";  #MSB from plane 18
+NET "vdif_sum_data_n<37>" LOC = "M42";
+NET "vdif_sum_data_p<38>" LOC = "M36";  #LSB from plane 19
+NET "vdif_sum_data_n<38>" LOC = "M37"; 
+NET "vdif_sum_data_p<39>" LOC = "P40";  #MSB from plane 19
+NET "vdif_sum_data_n<39>" LOC = "P41";
+NET "vdif_sum_data_p<40>" LOC = "R39";  #LSB from plane 20
+NET "vdif_sum_data_n<40>" LOC = "P38"; 
+NET "vdif_sum_data_p<41>" LOC = "P36";  #MSB from plane 20
+NET "vdif_sum_data_n<41>" LOC = "P35";
+NET "vdif_sum_data_p<42>" LOC = "R40";  #LSB from plane 21
+NET "vdif_sum_data_n<42>" LOC = "T40"; 
+NET "vdif_sum_data_p<43>" LOC = "P42";  #MSB from plane 21
+NET "vdif_sum_data_n<43>" LOC = "R42";
+NET "vdif_sum_data_p<44>" LOC = "T41";  #LSB from plane 22
+NET "vdif_sum_data_n<44>" LOC = "T42";
+NET "vdif_sum_data_p<45>" LOC = "R35";  #MSB from plane 22
+NET "vdif_sum_data_n<45>" LOC = "R34";
+NET "vdif_sum_data_p<46>" LOC = "T34";  #LSB from plane 23
+NET "vdif_sum_data_n<46>" LOC = "T35";
+NET "vdif_sum_data_p<47>" LOC = "T39";  #MSB from plane 23
+NET "vdif_sum_data_n<47>" LOC = "R38";
+NET "vdif_sum_data_p<48>" LOC = "U36";  #LSB from plane 24
+NET "vdif_sum_data_n<48>" LOC = "T36";
+NET "vdif_sum_data_p<49>" LOC = "R37";  #MSB from plane 24
+NET "vdif_sum_data_n<49>" LOC = "T37";
+NET "vdif_sum_data_p<50>" LOC = "V34";  #LSB from plane 25
+NET "vdif_sum_data_n<50>" LOC = "U34";
+NET "vdif_sum_data_p<51>" LOC = "U37";  #MSB from plane 25
+NET "vdif_sum_data_n<51>" LOC = "U38";
+NET "vdif_sum_data_p<52>" LOC = "U39";  #LSB from plane 26
+NET "vdif_sum_data_n<52>" LOC = "V39";
+NET "vdif_sum_data_p<53>" LOC = "U42";  #MSB from plane 26
+NET "vdif_sum_data_n<53>" LOC = "U41";
+NET "vdif_sum_data_p<54>" LOC = "V38";  #LSB from plane 27
+NET "vdif_sum_data_n<54>" LOC = "W38";
+NET "vdif_sum_data_p<55>" LOC = "V40";  #MSB from plane 27
+NET "vdif_sum_data_n<55>" LOC = "W40";
+NET "vdif_sum_data_p<56>" LOC = "V41";  #LSB from plane 28
+NET "vdif_sum_data_n<56>" LOC = "W41";
+NET "vdif_sum_data_p<57>" LOC = "U32";  #MSB from plane 28
+NET "vdif_sum_data_n<57>" LOC = "U33";
+NET "vdif_sum_data_p<58>" LOC = "Y40";  #LSB from plane 29
+NET "vdif_sum_data_n<58>" LOC = "Y39";
+NET "vdif_sum_data_p<59>" LOC = "W36";  #MSB from plane 29
+NET "vdif_sum_data_n<59>" LOC = "V36";
+NET "vdif_sum_data_p<60>" LOC = "V33";  #LSB from plane 30
+NET "vdif_sum_data_n<60>" LOC = "W33";
+NET "vdif_sum_data_p<61>" LOC = "W35";  #MSB from plane 30
+NET "vdif_sum_data_n<61>" LOC = "V35";
+NET "vdif_sum_data_p<62>" LOC = "W42";  #LSB from plane 31
+NET "vdif_sum_data_n<62>" LOC = "Y42";
+NET "vdif_sum_data_p<63>" LOC = "W32";  #MSB from plane 31
+NET "vdif_sum_data_n<63>" LOC = "Y33";
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ##############################################
