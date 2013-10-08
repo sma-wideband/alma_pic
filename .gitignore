@@ -1,0 +1,7 @@
+# XPS by-products
+__xps
+system.log
+
+# Emacs by-products
+*~
+\#*\#
