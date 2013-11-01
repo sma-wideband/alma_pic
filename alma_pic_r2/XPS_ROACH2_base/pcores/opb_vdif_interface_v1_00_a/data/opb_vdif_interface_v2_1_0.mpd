@@ -63,7 +63,7 @@ PARAMETER nch = 0, DT = INTEGER
   ######################################
   ## C167 Bus signals
   ######################################
-  PORT CD        = "", DIR = IO, VEC = [0:7], 
+  PORT CD        = "", DIR = IO, VEC = [7:0], 
   PORT CTRL_DATA = "", DIR = I
   PORT RnW       = "", DIR = I 
   PORT uCLK0     = "", DIR = I 
@@ -86,6 +86,7 @@ PARAMETER nch = 0, DT = INTEGER
 	PORT TE_n          = "", DIR = I
   PORT TIME0         = "", DIR = O 	
   PORT DONE          = "", DIR = O  
+  PORT DLL           = "", DIR = O  
 
 #  PORT DataRdy  = "", DIR = I, VEC = [0:(nch-1)]
 #  PORT TimeCode = "", DIR = I, VEC = [0:31]
