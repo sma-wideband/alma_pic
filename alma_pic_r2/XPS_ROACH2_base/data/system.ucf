@@ -447,6 +447,7 @@ NET "vdif_TE_n"         LOC = "L37";
 NET "vdif_TIME0"        LOC = "P28"  | IOSTANDARD = "LVCMOS25";
 
 NET "vdif_DONE"         LOC = "N28"  | IOSTANDARD = "LVCMOS25";
+NET "vdif_DLL"          LOC = "M31"  | IOSTANDARD = "LVCMOS25";
 
 NET "vdif_PPS_Maser_p"  LOC = "J42"; #Maser 1-PPS input
 NET "vdif_PPS_Maser_n"  LOC = "K42";
