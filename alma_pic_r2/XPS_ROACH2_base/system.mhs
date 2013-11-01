@@ -48,12 +48,13 @@ PORT C125_clk_p  = C125_clk_p,  DIR = I, SIGIS = CLK, CLK_FREQ = 125000000
  PORT vdif_TE_n       = vdif_TE_n, DIR = I
  PORT vdif_TIME0      = vdif_TIME0, DIR = O 
  PORT vdif_DONE       = vdif_DONE, DIR = O 
+ PORT vdif_DLL        = vdif_DLL, DIR = O 
  PORT vdif_sum_data_p = vdif_sum_data_p, DIR = I, VEC = [63:0]
  PORT vdif_sum_data_n = vdif_sum_data_n, DIR = I, VEC = [63:0]
  PORT vdif_roachtp    = vdif_roachtp, DIR = O, VEC = [1:0]
  PORT vdif_routb      = vdif_routb,   DIR = O, VEC = [3:0]
  
- PORT vdif_CD = vdif_CD, DIR = IO, VEC = [0:7]
+ PORT vdif_CD = vdif_CD, DIR = IO, VEC = [7:0]
  PORT vdif_CTRL_DATA = vdif_CTRL_DATA, DIR = I
  PORT vdif_RnW = vdif_RnW, DIR = I
  PORT vdif_uCLK0 = vdif_uCLK0, DIR = I
@@ -229,6 +230,7 @@ BEGIN opb_vdif_interface
  PORT TE_n      = vdif_TE_n 
  PORT TIME0     = vdif_TIME0 
  PORT DONE      = vdif_DONE
+ PORT DLL       = vdif_DLL
 # PORT DataRdy = 0b0000
 # PORT TimeCode = 0x00000000
 # PORT dataIn = 0x0000000000000000
