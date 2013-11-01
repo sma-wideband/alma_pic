@@ -43,8 +43,8 @@ entity opb_vdif_interface is
       OPB_seqAddr : in std_logic;
       
       --Multi-Drop Bus Interface
-      CD_I      : in std_logic_vector(0 to 7); -- uP bus
-      CD_O      : out std_logic_vector(0 to 7); -- uP bus
+      CD_I      : in std_logic_vector(7 downto 0); -- uP bus
+      CD_O      : out std_logic_vector(7 downto 0); -- uP bus
       CD_T      : out std_logic; -- uP bus
       CTRL_DATA : in std_logic; -- control line for uP data bus
       RnW       : in std_logic; -- read not write
@@ -65,7 +65,8 @@ entity opb_vdif_interface is
       TE_p            : in std_logic;   --the 48 msec TE signal from the QCC, called TIME_IN on PIC schematic
       TE_n            : in std_logic;
       TIME0           : out std_logic;  --the 48 msec TE signal to the microprocessor interrupt
-      DONE            : out std_logic;  --signal to indicate to microprocessor that FPGA is programmed.  Drive low      
+      DONE            : out std_logic;  --signal to indicate to microprocessor that FPGA is programmed.  Drive high      
+      DLL             : out std_logic;  --signal to indicate that DLL is locked.  Eventually tie to MMCM.  For now tie high      
 --      DataRdy         : in std_logic_vector(nch-1 downto 0);
 --      TimeCode        : in std_logic_vector(31 downto 0);
 --      dataIn          : in std_logic_vector(63 downto 0);  --data for VLBA; need to delete sometime
@@ -373,7 +374,8 @@ end record HdrArray;
     
    
     --status signals
-    signal DONE_sig             :std_logic := '0';
+    signal DONE_sig             :std_logic := '1';
+    signal DLL_sig              :std_logic := '1';    
         
 
 
@@ -609,12 +611,12 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
 
   -- connect test ports
   test_port_sig <= test_port_in0;  
-  test_port_out <= test_port_sig;
+  test_port_out <= test_port_sig;  --loop back for testing
   ROUTB         <= ROUTB_sig;
    
   --connect misc signals
   DONE           <= DONE_sig;          
-  
+  DLL            <= DLL_sig;  
 
 
   -- C167 connections
