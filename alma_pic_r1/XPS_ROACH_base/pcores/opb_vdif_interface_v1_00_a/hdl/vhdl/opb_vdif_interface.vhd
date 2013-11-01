@@ -436,7 +436,7 @@ begin
 
           case (DeviceAddr(5 downto 0)) is
 
-            when "000000" => DeviceDataOut <= SyncWord;      --0x0000
+            when "000000" => DeviceDataOut <= x"abcd1234";--SyncWord;      --0x0000
 --            when x"000" => DeviceDataOut <= SyncWord(15 downto 0);      --0x0000
 --            when x"001" => DeviceDataOut <= SyncWord(31 downto 16);     --0x0002
 --            when x"002" => DeviceDataOut <= x"00" & RefEpoch;           --0x0004
