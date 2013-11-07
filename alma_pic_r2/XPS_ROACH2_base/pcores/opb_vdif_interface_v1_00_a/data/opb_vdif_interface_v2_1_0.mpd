@@ -84,6 +84,8 @@ PARAMETER nch = 0, DT = INTEGER
   PORT PPS_PIC_n     = "", DIR = O                
 	PORT TE_p          = "", DIR = I
 	PORT TE_n          = "", DIR = I
+	PORT AUXTIME_p     = "", DIR = I
+	PORT AUXTIME_n     = "", DIR = I	
   PORT TIME0         = "", DIR = O 	
   PORT DONE          = "", DIR = O  
   PORT DLL           = "", DIR = O  
