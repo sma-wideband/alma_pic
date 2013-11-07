@@ -444,6 +444,9 @@ NET "vdif_PPS_PIC_n"    LOC = "Y34";
 NET "vdif_TE_p"         LOC = "K37"; #TE signal from system, called TIME_IN on PIC
 NET "vdif_TE_n"         LOC = "L37";
 
+NET "vdif_AUXTIME_p"    LOC = "Y38"; #TE signal from system, called TIME_IN on PIC
+NET "vdif_AUXTIME_n"    LOC = "AA39";
+
 NET "vdif_TIME0"        LOC = "P28"  | IOSTANDARD = "LVCMOS25";
 
 NET "vdif_DONE"         LOC = "N28"  | IOSTANDARD = "LVCMOS25";
