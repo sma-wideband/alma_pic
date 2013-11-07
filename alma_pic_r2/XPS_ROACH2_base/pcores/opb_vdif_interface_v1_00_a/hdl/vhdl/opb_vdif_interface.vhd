@@ -64,6 +64,8 @@ entity opb_vdif_interface is
       PPS_PIC_n       : out std_logic;
       TE_p            : in std_logic;   --the 48 msec TE signal from the QCC, called TIME_IN on PIC schematic
       TE_n            : in std_logic;
+      AUXTIME_p       : in std_logic;   --an extram time signal distributed with the TE; not used, but an FPGA interface in included
+      AUXTIME_n       : in std_logic;      
       TIME0           : out std_logic;  --the 48 msec TE signal to the microprocessor interrupt
       DONE            : out std_logic;  --signal to indicate to microprocessor that FPGA is programmed.  Drive high      
       DLL             : out std_logic;  --signal to indicate that DLL is locked.  Eventually tie to MMCM.  For now tie high      
@@ -357,7 +359,10 @@ end record HdrArray;
     -- system-timing-related signals
     signal OnePPS               :std_logic := '0';
     signal PPS_PIC_sig          :std_logic := '0'; --FPGA-derived 1-PPS based on TE and command from CCC
+    signal PPS_PIC_p_sig        :std_logic ;       --FPGA-derived 1-PPS based on TE and command from CCC buffer output
+    signal PPS_PIC_n_sig        :std_logic ;       --FPGA-derived 1-PPS based on TE and command from CCC buffer output
     signal TE_sig               :std_logic := '0';
+    signal AUXTIME_sig          :std_logic := '0';    
     signal TIME0_sig            :std_logic := '0';
     signal PPS_Maser_sig        :std_logic;  --1-PPS from Maser for sanity check of the locally generated 1-PPS from the TE
     signal PPS_GPS_sig          :std_logic;  --1-PPS from GPS for sanity check of the locally generated 1-PPS from the TE
@@ -438,7 +443,7 @@ begin
      port map (
        O  => DAC_CLK_p_sig, -- Diff_p output (connect directly to top-level port)
        OB => DAC_CLK_n_sig, -- Diff_n output (connect directly to top-level port)
-       I  => test_ctr(7) -- Buffer input
+       I  => adc_clk -- Buffer input
      ); 
 
     -- Output for DAC data; single ended so don't need to specify buffers here    
@@ -448,7 +453,10 @@ begin
     DAC_CLK_n <= DAC_CLK_n_sig;      
     DAC_IN_A  <= DAC_IN_A_sig;
     DAC_IN_B  <= DAC_IN_B_sig;
---    DAC_IN_A0  <= DAC_IN_A0_sig;            
+--    DAC_IN_A0  <= DAC_IN_A0_sig; 
+
+    PPS_PIC_p <= PPS_PIC_p_sig;
+    PPS_PIC_n <= PPS_PIC_n_sig;    
 
    -- buffer for TE signal
 
@@ -466,15 +474,28 @@ begin
       I => TE_p, -- Diff_p clock buffer input (connect directly to top-level port)
       IB => TE_n -- Diff_n clock buffer input (connect directly to top-level port)
    );  
-   
+
+    AUXTIME_buf: IBUFDS
+   generic map (
+      CAPACITANCE => "DONT_CARE", -- "LOW", "NORMAL", "DONT_CARE" (Virtex-4 only)
+      DIFF_TERM => TRUE, -- Differential Termination (Virtex-4/5, Spartan-3E/3A)
+      IBUF_DELAY_VALUE => "0", -- Specify the amount of added input delay for buffer,
+      IFD_DELAY_VALUE => "AUTO", -- Specify the amount of added delay for input register,
+      IOSTANDARD => "DEFAULT")
+      
+   port map (
+      O => AUXTIME_sig, -- AUXTIME buffer output
+      I => AUXTIME_p, -- Diff_p clock buffer input (connect directly to top-level port)
+      IB => AUXTIME_n -- Diff_n clock buffer input (connect directly to top-level port)
+   );   
    
     PIC_1PPS_BUF: OBUFDS
      generic map (
        IOSTANDARD => "DEFAULT")
      port map (
-       O  => PPS_PIC_p, -- Diff_p output (connect directly to top-level port)
-       OB => PPS_PIC_n, -- Diff_n output (connect directly to top-level port)
-       I  => PPS_PIC_sig -- Buffer input
+       O  => PPS_PIC_p_sig, -- Diff_p output 
+       OB => PPS_PIC_n_sig, -- Diff_n output 
+       I  => test_ctr(7) -- Buffer input  
      ); 
      
    Maser_buf: IBUFDS
@@ -617,7 +638,7 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
   --connect misc signals
   DONE           <= DONE_sig;          
   DLL            <= DLL_sig;  
-
+  PPS_PIC_sig <= test_ctr(0);
 
   -- C167 connections
   CD_T <=  NOT RnW;
@@ -644,7 +665,8 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
   --xferAck_sig <= ackSigR OR ackSigW;
   
   --connect DAC signals
-  
+  DAC_IN_A_sig <= test_ctr(7 downto 4);
+  DAC_IN_B_sig <= test_ctr(7 downto 4);  
 
   -- EPB register access process
     RegisterAccess : process(OPB_Rst, epb_clk, OPB_select,
@@ -1298,20 +1320,46 @@ HdrAry.Persnlity<= P_TYPE;
 
   mux_rtp0 : mux64
   	     port map (
-            data_sel => test_port_in0(5 downto 0),
-            data_in(0)  => test_ctr(7),
-            data_in(1) => CLKFBSTOPPED_sig,
-            data_in(2) => CLKINSTOPPED_sig,
-            data_in(3) => LOCKED_sig,
-            data_in(4) => c167_reg0_sig(0),
-            data_in(5) => c167_reg0_sig(1),
-            data_in(6) => c167_reg0_sig(2),
-            data_in(7) => c167_reg0_sig(3),
-            data_in(8) => c167_reg0_sig(4),
-            data_in(9) => c167_reg0_sig(5),
-            data_in(10) => c167_reg0_sig(6),
-            data_in(11) => c167_reg0_sig(7),
-            data_in(63 downto 12) => (others => '0'),
+            data_sel => c167_reg1_sig(5 downto 0),
+            data_in(0)  => sum_data(0),        --Sum Data LSB channel 0
+            data_in(1)  => sum_data(2),        --Sum Data LSB channel 1
+            data_in(2)  => sum_data(4),        --          .
+            data_in(3)  => sum_data(6),        --          .
+            data_in(4)  => sum_data(8),        --          .
+            data_in(5)  => sum_data(10),
+            data_in(6)  => sum_data(12),
+            data_in(7)  => sum_data(14),
+            data_in(8)  => sum_data(16),
+            data_in(9)  => sum_data(18),
+            data_in(10) => sum_data(20),
+            data_in(11) => sum_data(22),
+            data_in(12) => sum_data(24),
+            data_in(13) => sum_data(26),
+            data_in(14) => sum_data(28),
+            data_in(15) => sum_data(30),
+            data_in(16) => sum_data(32),
+            data_in(17) => sum_data(34),
+            data_in(18) => sum_data(36),
+            data_in(19) => sum_data(38),
+            data_in(20) => sum_data(40),
+            data_in(21) => sum_data(42),
+            data_in(22) => sum_data(44),
+            data_in(23) => sum_data(46),
+            data_in(24) => sum_data(48),
+            data_in(25) => sum_data(50),
+            data_in(26) => sum_data(52),
+            data_in(27) => sum_data(54),
+            data_in(28) => sum_data(56),
+            data_in(29) => sum_data(58),
+            data_in(30) => sum_data(60),
+            data_in(31) => sum_data(62),       --Sum Data LSB channel 31
+            data_in(32) => TE_sig,
+            data_in(33) => AUXTIME_sig,            
+            data_in(34) => PPS_Maser_sig,
+            data_in(35) => PPS_GPS_sig,            
+            data_in(36) => c167_reg0_sig(0),   
+            data_in(37) => c167_reg0_sig(7),                      
+            data_in(63 downto 38) => (others => '0'),
             data_out => ROACHTP(0)	     
   	     );
   	     
@@ -1319,75 +1367,47 @@ HdrAry.Persnlity<= P_TYPE;
 
   mux_rtp1 : mux64
   	     port map (
-            data_sel => test_port_in0(13 downto 8),
-            data_in(0) => test_ctr_fifo(7),
-            data_in(1) => sum_data(1),
-            data_in(2) => sum_data(2),
-            data_in(3) => sum_data(3),
-            data_in(4) => sum_data(4),
-            data_in(5) => sum_data(5),
-            data_in(6) => sum_data(6),
-            data_in(7) => sum_data(7),
-            data_in(8) => sum_data(8),
-            data_in(9) => sum_data(9),
-            data_in(10) => sum_data(10),
-            data_in(11) => sum_data(11),
-            data_in(12) => sum_data(12),
-            data_in(13) => sum_data(13),
-            data_in(14) => sum_data(14),
-            data_in(15) => sum_data(15),
-            data_in(16) => sum_data(16),
-            data_in(17) => sum_data(17),
-            data_in(18) => sum_data(18),
-            data_in(19) => sum_data(19),
-            data_in(20) => sum_data(20),
-            data_in(21) => sum_data(21),
-            data_in(22) => sum_data(22),
-            data_in(23) => sum_data(23),
-            data_in(24) => sum_data(24),
-            data_in(25) => sum_data(25),
-            data_in(26) => sum_data(26),
-            data_in(27) => sum_data(27),
-            data_in(28) => sum_data(28),
-            data_in(29) => sum_data(29),
-            data_in(30) => sum_data(30),
-            data_in(31) => sum_data(31),
-            data_in(32) => sum_data(32),
-            data_in(33) => sum_data(33),
-            data_in(34) => sum_data(34),
-            data_in(35) => sum_data(35),
-            data_in(36) => sum_data(36),
-            data_in(37) => sum_data(37),
-            data_in(38) => sum_data(38),
-            data_in(39) => sum_data(39),
-            data_in(40) => sum_data(40),
-            data_in(41) => sum_data(41),
-            data_in(42) => sum_data(42),
-            data_in(43) => sum_data(43),
-            data_in(44) => sum_data(44),
-            data_in(45) => sum_data(45),
-            data_in(46) => sum_data(46),
-            data_in(47) => sum_data(47),
-            data_in(48) => sum_data(48),
-            data_in(49) => sum_data(49),
-            data_in(50) => sum_data(50),
-            data_in(51) => sum_data(51),
-            data_in(52) => sum_data(52),
-            data_in(53) => sum_data(53),
-            data_in(54) => sum_data(54),
-            data_in(55) => sum_data(55),
-            data_in(56) => sum_data(56),
-            data_in(57) => sum_data(57),
-            data_in(58) => sum_data(58),
-            data_in(59) => sum_data(59),
-            data_in(60) => sum_data(60),
-            data_in(61) => sum_data(61),
-            data_in(62) => sum_data(62),
-            data_in(63) => sum_data(63),
-            
---            data_in(63 downto 8) => (others => '0'),
+            data_sel => c167_reg2_sig(5 downto 0),
+            data_in(0)  => sum_data(1),        --Sum Data MSB channel 0
+            data_in(1)  => sum_data(3),        --Sum Data MSB channel 1
+            data_in(2)  => sum_data(5),        --          .
+            data_in(3)  => sum_data(7),        --          .
+            data_in(4)  => sum_data(9),        --          .
+            data_in(5)  => sum_data(11),
+            data_in(6)  => sum_data(13),
+            data_in(7)  => sum_data(15),
+            data_in(8)  => sum_data(17),
+            data_in(9)  => sum_data(19),
+            data_in(10) => sum_data(21),
+            data_in(11) => sum_data(23),
+            data_in(12) => sum_data(25),
+            data_in(13) => sum_data(27),
+            data_in(14) => sum_data(29),
+            data_in(15) => sum_data(31),
+            data_in(16) => sum_data(33),
+            data_in(17) => sum_data(35),
+            data_in(18) => sum_data(37),
+            data_in(19) => sum_data(39),
+            data_in(20) => sum_data(41),
+            data_in(21) => sum_data(43),
+            data_in(22) => sum_data(45),
+            data_in(23) => sum_data(47),
+            data_in(24) => sum_data(49),
+            data_in(25) => sum_data(51),
+            data_in(26) => sum_data(53),
+            data_in(27) => sum_data(55),
+            data_in(28) => sum_data(57),
+            data_in(29) => sum_data(59),
+            data_in(30) => sum_data(61),
+            data_in(31) => sum_data(63),        --Sum Data MSB channel 31
+            data_in(63 downto 32) => (others => '0'),
             data_out => ROACHTP(1)
-  	     );  	     
+  	     );  	
+--ROUTB(3 downto 0) test points  	          
+  ROUTB_sig(0) <= test_ctr(7);
+  ROUTB_sig(1) <= test_ctr_fifo(7);
+  ROUTB_sig(2) <= adc_clk;
+  ROUTB_sig(3) <= C125;  
 	
 --process for generating test frequencies
 get_tst_freq: process(C125)
@@ -1398,9 +1418,9 @@ get_tst_freq: process(C125)
 	end process;	
 	
 	--process for generating test frequencies
-get_tst_freq2: process(CFIFO)
+get_tst_freq2: process(C125)
 	begin
-	  if(rising_edge(CFIFO)) then
+	  if(rising_edge(C125)) then
 	     test_ctr_fifo <= test_ctr_fifo + 1;
 	  end if;
 	end process;	
