@@ -46,6 +46,8 @@ PORT C125_clk_p  = C125_clk_p,  DIR = I, SIGIS = CLK, CLK_FREQ = 125000000
  PORT vdif_PPS_PIC_n  = vdif_PPS_PIC_n, DIR = O
  PORT vdif_TE_p       = vdif_TE_p, DIR = I
  PORT vdif_TE_n       = vdif_TE_n, DIR = I
+ PORT vdif_AUXTIME_p       = vdif_AUXTIME_p, DIR = I
+ PORT vdif_AUXTIME_n       = vdif_AUXTIME_n, DIR = I 
  PORT vdif_TIME0      = vdif_TIME0, DIR = O 
  PORT vdif_DONE       = vdif_DONE, DIR = O 
  PORT vdif_DLL        = vdif_DLL, DIR = O 
@@ -228,6 +230,8 @@ BEGIN opb_vdif_interface
  PORT PPS_PIC_n = vdif_PPS_PIC_n
  PORT TE_p      = vdif_TE_p
  PORT TE_n      = vdif_TE_n 
+ PORT AUXTIME_p = vdif_AUXTIME_p
+ PORT AUXTIME_n = vdif_AUXTIME_n  
  PORT TIME0     = vdif_TIME0 
  PORT DONE      = vdif_DONE
  PORT DLL       = vdif_DLL
