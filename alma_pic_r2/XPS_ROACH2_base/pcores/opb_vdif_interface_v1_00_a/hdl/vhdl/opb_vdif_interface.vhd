@@ -22,7 +22,8 @@ entity opb_vdif_interface is
     REV_MAJOR_FRAC  :   std_logic_vector(7 downto 0) := x"00";   -- major revision, fractional part
     P_TYPE          :   std_logic_vector(7 downto 0) := x"83";   -- personality type
     ADDRHI      : std_logic_vector(23 downto 0) := X"000000";
-    nch         : integer range 0 to 7 := 4      -- number of channels synthesized
+    nch         : integer range 0 to 7 := 4;      -- number of channels synthesized
+    REG12_LGTH  : integer := 40
    );
     port
     (
@@ -86,9 +87,9 @@ entity opb_vdif_interface is
 --      DAC_IN_A0       : out std_logic_vector(3 downto 0);  --test to try to get DAC data bits working
       
       -- test ports
-      test_port_out   : out std_logic_vector(31 downto 0);
-      test_port_in0   : in  std_logic_vector(31 downto 0);
-      test_port_in1   : in  std_logic_vector(31 downto 0);                  
+      test_port_out   : out std_logic_vector(31 downto 0);  --I/O to PPC registers
+      test_port_in0   : in  std_logic_vector(31 downto 0);  --I/O to PPC registers
+      test_port_in1   : in  std_logic_vector(31 downto 0);  --I/O to PPC registers                
       ROACHTP         : out std_logic_vector(1 downto 0);
       ROUTB           : out std_logic_vector(3 downto 0)  --test points to JR1           
       
@@ -99,7 +100,7 @@ architecture vdif_arch OF opb_vdif_interface
 is
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
-
+-- the two components below are from the VLBA design; they are commented out for now and should eventually be deleted
 --    component vdif_input_sel
 --        port
 --        (
@@ -155,10 +156,12 @@ is
 		   ctrl_data		: in std_logic; 			-- control data selector, ctr_data='1' => control, '0' => data 
 		   c167_data_I	: in std_logic_vector (7 downto 0); 	-- bus connection with the c167, bidirectional
 		   c167_data_O	: out std_logic_vector (7 downto 0); 	-- bus connection with the c167, bidirectional
-		   data_from_cpu	: out std_logic_vector (7 downto 0); -- data_from_CPU, must be used together with C167_WR_EN(X) being 0<=X<=31
-		   data_to_cpu		: in std_logic_vector (7 downto 0);	-- data_to_CPU, must be used together with C167_RR_EN(X) being 0<=X<=31
-		   C167_RD_EN			: out std_logic_vector (31 downto 0);	-- Read enable signals, they must be individually connected to the tri-state controller associated to teh desired signals
-		   C167_WR_EN		  : out std_logic_vector (31 downto 0);	-- Write enable signals, they must be individually connected to the "clock enable" associated to the addressed register.
+		   data_from_cpu	: out std_logic_vector (7 downto 0); -- data_from_CPU, must be used together with C167_WE and C167_ADDR
+		   data_to_cpu		: in std_logic_vector (7 downto 0);	-- data_to_CPU, must be used together with C167_ADDR
+--		   C167_RD_EN			: out std_logic_vector (31 downto 0);	-- Read enable signals, they must be individually connected to the tri-state controller associated with desired signals
+--		   C167_WR_EN		  : out std_logic_vector (31 downto 0);	-- Write enable signals, they must be individually connected to the "clock enable" associated to the addressed register.
+	     C167_WE        : out std_logic;                    -- new write enable signal
+	     C167_ADDR      : out std_logic_vector(7 downto 0); -- new address bus		   
 		   C167_CLK				: out std_logic	-- C167 clock signal, the first 4 clocks were removed.
 	);
   end component c167_interface;
@@ -170,73 +173,82 @@ is
             data_out:		out std_logic
        );
     end component mux64;
+    
+        component treg8
+       port(
+          D:    in  std_logic_vector(7 downto 0);
+          Q:    out std_logic_vector(7 downto 0) := "00000000";
+          CE: in  std_logic;
+          CK: in  std_logic
+       );
+    end component treg8;
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
     -- maximum number of channels that can be used. Initially set to 7.
     -- if this is to increase - the PPC DeviceData case definitions must change
-    constant MXCH : integer := 7;
+--    constant MXCH : integer := 7;
+--all VLBA stuff; comment out for now; probably delete later
+--    type FrameNArray is array (0 to nch-1) of std_logic_vector(23 downto 0);
+--    signal FrameNum    : FrameNArray;
+--
+--    signal ComplexFlags: std_logic_vector(0 to 7);
+--
+--    type BpS_Array is array (0 to MXCH) of std_logic_vector(4 downto 0);
+--    signal Bits_SampA   : BpS_Array;
+--
+--    type SampRateArray is array (0 to MXCH) of std_logic_vector(23 downto 0);
+--    signal SampleRateA  : SampRateArray;
+--
+--    type Loif_Ftw is array (0 to MXCH) of std_logic_vector(31 downto 0);
+--    signal LoifFtwA     : Loif_Ftw;
+--
+--    type IFnumArray is array (0 to MXCH) of std_logic_vector(3 downto 0);
+--    signal IFnumA       : IFnumArray;
+--
+--    type SubBandArray is array (0 to MXCH) of std_logic_vector(3 downto 0);
+--    signal SubBandA     : SubBandArray;
+--
+--    --type RateArray is array (0 to MXCH) of std_logic_vector(1 downto 0);
+--    signal selRate : std_logic_vector(1 downto 0);
+--
+--    signal ESideBand: std_logic_vector(7 downto 0);
 
-    type FrameNArray is array (0 to nch-1) of std_logic_vector(23 downto 0);
-    signal FrameNum    : FrameNArray;
 
-    signal ComplexFlags: std_logic_vector(0 to 7);
-
-    type BpS_Array is array (0 to MXCH) of std_logic_vector(4 downto 0);
-    signal Bits_SampA   : BpS_Array;
-
-    type SampRateArray is array (0 to MXCH) of std_logic_vector(23 downto 0);
-    signal SampleRateA  : SampRateArray;
-
-    type Loif_Ftw is array (0 to MXCH) of std_logic_vector(31 downto 0);
-    signal LoifFtwA     : Loif_Ftw;
-
-    type IFnumArray is array (0 to MXCH) of std_logic_vector(3 downto 0);
-    signal IFnumA       : IFnumArray;
-
-    type SubBandArray is array (0 to MXCH) of std_logic_vector(3 downto 0);
-    signal SubBandA     : SubBandArray;
-
-    --type RateArray is array (0 to MXCH) of std_logic_vector(1 downto 0);
-    signal selRate : std_logic_vector(1 downto 0);
-
-    signal ESideBand: std_logic_vector(7 downto 0);
-
-
-    -- VDIF Header definition
-type HdrArray is record
-    --Word 0    words are 32 bits wide
-    InvFlg   : std_logic;-- := 0;
-    Legacy   : std_logic;-- := 0;
-    SFRE     : std_logic_vector(29 downto 0); -- seconds from ref epoch
-    --Word 1
-    RefEpoch : std_logic_vector(7 downto 0);  -- only 6 bits valid
-    FrameNum : std_logic_vector(23 downto 0);
-    --Word 2
-    VERS   : std_logic_vector(2 downto 0);-- := "001";
-    LogCh  : std_logic_vector(4 downto 0);-- := "00000"; --num chan in array=1 (2^^0)?
-    FrameLen : std_logic_vector(23 downto 0);-- := x"1388"; -- =5000?
-    --Word 3
-    CmplxFlg : std_logic;
-    Bits_Samp: std_logic_vector(4 downto 0);-- initially defaults to 2
-    ThreadID : std_logic_vector(9 downto 0);-- default to channel number
-    StationID: std_logic_vector(15 downto 0);
-    --Word 4
-    EDV    : std_logic_vector(7 downto 0);-- := x"3C"; -- ExtendedUserDataVersion
-    --signal UnitFlg  : std_logic;  add this bit to SRU vector below
-    SRU      : std_logic_vector(23 downto 0);
-    --Word 5
-    SYNC   : std_logic_vector(31 downto 0);--:= x"ACABFEED";
-    --Word 6
-    LoifFtw  : std_logic_vector(31 downto 0);
-    --Word 7
-    DBEnum   : std_logic_vector(3 downto 0);
-    IFnum    : std_logic_vector(3 downto 0);
-    SubBand  : std_logic_vector(2 downto 0);
-    ESideBand: std_logic;
-    MajRev   : std_logic_vector(3 downto 0);
-    MinRev   : std_logic_vector(3 downto 0);
-    Persnlity: std_logic_vector(7 downto 0);
-end record HdrArray;
+    -- VDIF Header definition (from VLBA design; comment out)
+--type HdrArray is record
+--    --Word 0    words are 32 bits wide
+--    InvFlg   : std_logic;-- := 0;
+--    Legacy   : std_logic;-- := 0;
+--    SFRE     : std_logic_vector(29 downto 0); -- seconds from ref epoch
+--    --Word 1
+--    RefEpoch : std_logic_vector(7 downto 0);  -- only 6 bits valid
+--    FrameNum : std_logic_vector(23 downto 0);
+--    --Word 2
+--    VERS   : std_logic_vector(2 downto 0);-- := "001";
+--    LogCh  : std_logic_vector(4 downto 0);-- := "00000"; --num chan in array=1 (2^^0)?
+--    FrameLen : std_logic_vector(23 downto 0);-- := x"1388"; -- =5000?
+--    --Word 3
+--    CmplxFlg : std_logic;
+--    Bits_Samp: std_logic_vector(4 downto 0);-- initially defaults to 2
+--    ThreadID : std_logic_vector(9 downto 0);-- default to channel number
+--    StationID: std_logic_vector(15 downto 0);
+--    --Word 4
+--    EDV    : std_logic_vector(7 downto 0);-- := x"3C"; -- ExtendedUserDataVersion
+--    --signal UnitFlg  : std_logic;  add this bit to SRU vector below
+--    SRU      : std_logic_vector(23 downto 0);
+--    --Word 5
+--    SYNC   : std_logic_vector(31 downto 0);--:= x"ACABFEED";
+--    --Word 6
+--    LoifFtw  : std_logic_vector(31 downto 0);
+--    --Word 7
+--    DBEnum   : std_logic_vector(3 downto 0);
+--    IFnum    : std_logic_vector(3 downto 0);
+--    SubBand  : std_logic_vector(2 downto 0);
+--    ESideBand: std_logic;
+--    MajRev   : std_logic_vector(3 downto 0);
+--    MinRev   : std_logic_vector(3 downto 0);
+--    Persnlity: std_logic_vector(7 downto 0);
+--end record HdrArray;
 
     -- clock management
     signal epb_clk : std_logic;         -- connected to OPB_Clk for now
@@ -247,10 +259,11 @@ end record HdrArray;
     signal DeviceDataOut : std_logic_vector(31 downto 0);  -- original data out bus
 
 
-    signal HdrAry : HdrArray;
-    signal HdrBlk : vdifHdr;
+--    signal HdrAry : HdrArray; from VLBA design; comment out
+--    signal HdrBlk : vdifHdr;  from VLBA design; comment out
  -------------------------------------------------------------------------------
     -- definitions for vdif channel counter state machine
+    -- this is part of VLBA design
     type vdifChCntr is
     (
         ccStartWait,
@@ -334,20 +347,78 @@ end record HdrArray;
     signal test_c_highaddr : std_logic_vector(31 downto 0) := C_HIGHADDR;
     signal test_ctr        : std_logic_vector(7 downto 0)  := X"00";
     signal test_ctr_fifo   : std_logic_vector(7 downto 0)  := X"00";    
+    signal test_ctr_125    : std_logic_vector(7 downto 0)  := X"00";      
     signal C125_ds         : std_logic;                    -- for testing C125 clock     
     signal C125            : std_logic;                    -- for testing C125 clock  
     signal ROUTB_sig       : std_logic_vector(3 downto 0) := "0000";
     signal TimeCode_sig    : std_logic_vector(31 downto 0) := X"0000_0000";
         
     --C167 registers
-    signal c167_reg0_sig     :std_logic_vector(7 downto 0);  --a few registers
-    signal c167_reg1_sig     :std_logic_vector(7 downto 0);
-    signal c167_reg2_sig     :std_logic_vector(7 downto 0);  
+    signal c167_reg0_sig     :std_logic_vector(7 downto 0) := X"00";  --initialization register
+    signal c167_reg1_sig     :std_logic_vector(7 downto 0);           --ROACHTP0 select
+    signal c167_reg2_sig     :std_logic_vector(7 downto 0);           --ROACHTP1 select
+                                                                      --registers 3 to 11 are spare and not implemented
+    type array_reg12 is array(0 to REG12_LGTH-1) of std_logic_vector(7 downto 0);    
+    signal QREG12: array_reg12;  --array of 8-bit registers for register 12; see generate statement below                                                                     
+    signal c167_reg12_Q_sig     :std_logic_vector(7 downto 0);           --for last register in the chain
+    signal c167_reg12_CE_sig    :std_logic; 
+    
+    signal c167_reg13_sig     :std_logic_vector(7 downto 0);           --transfer request to operational registers
+    signal c167_reg14_sig     :std_logic_vector(7 downto 0);           --control register 0
+    signal c167_reg15_sig     :std_logic_vector(7 downto 0);           --control register 1
+    signal c167_reg16_sig     :std_logic_vector(7 downto 0);           --control register 2
+    signal c167_reg17_sig     :std_logic_vector(7 downto 0);           --control register 3
+    signal c167_reg18_sig     :std_logic_vector(7 downto 0);           --control register 4
+    signal c167_reg19_sig     :std_logic_vector(7 downto 0);           --control register 5
+    signal c167_reg20_sig     :std_logic_vector(7 downto 0);           --control register 6        
+    signal c167_reg21_sig     :std_logic_vector(7 downto 0);           --address register for status RAM
+    signal c167_reg22_sig     :std_logic_vector(7 downto 0);           --read request for status RAM           
+    signal c167_reg23_sig     :std_logic_vector(7 downto 0) := X"01";  --for LSB of PPS_Maser_Off   
+    signal c167_reg24_sig     :std_logic_vector(7 downto 0) := X"02";  --for byte 1 of PPS_Maser_Off
+    signal c167_reg25_sig     :std_logic_vector(7 downto 0) := X"03";  --for byte 2 of PPS_Maser_Off
+    signal c167_reg26_sig     :std_logic_vector(7 downto 0) := X"04";  --for MSB of PPS_Maser_Off
+    signal c167_reg27_sig     :std_logic_vector(7 downto 0) := X"05";  --for LSB of PPS_GPS_Off   
+    signal c167_reg28_sig     :std_logic_vector(7 downto 0) := X"06";  --for byte 1 of PPS_GPS_Off
+    signal c167_reg29_sig     :std_logic_vector(7 downto 0) := X"07";  --for byte 2 of PPS_GPS_Off
+    signal c167_reg30_sig     :std_logic_vector(7 downto 0) := X"08";  --for MSB of PPS_GPS_Off                            
+    signal c167_reg31_sig     :std_logic_vector(7 downto 0) := X"09";  --for LSB of PPS_TE_Off   
+    signal c167_reg32_sig     :std_logic_vector(7 downto 0) := X"0a";  --for byte 1 of PPS_TE_Off
+    signal c167_reg33_sig     :std_logic_vector(7 downto 0) := X"0b";  --for byte 2 of PPS_TE_Off
+    signal c167_reg34_sig     :std_logic_vector(7 downto 0) := X"0c";  --for PRN error
+    signal c167_reg35_sig     :std_logic_vector(7 downto 0) := X"0d";  --for environmental monitor
+    signal c167_reg36_sig     :std_logic_vector(7 downto 0) := X"0e";  --for environmental monitor
+    signal c167_reg37_sig     :std_logic_vector(7 downto 0) := X"0f";  --for environmental monitor
+    signal c167_reg38_sig     :std_logic_vector(7 downto 0) := X"10";  --for environmental monitor
+    signal c167_reg39_sig     :std_logic_vector(7 downto 0) := X"11";  --for environmental monitor
+    signal c167_reg40_sig     :std_logic_vector(7 downto 0) := X"12";  --for environmental monitor
+    signal c167_reg41_sig     :std_logic_vector(7 downto 0) := X"13";  --for environmental monitor
+    signal c167_reg42_sig     :std_logic_vector(7 downto 0) := X"14";  --for statistics status
+    signal c167_reg43_sig     :std_logic_vector(7 downto 0) := X"15";  --for +3 statistics, LSB
+    signal c167_reg44_sig     :std_logic_vector(7 downto 0) := X"16";  --for +3 statistics, byte 1
+    signal c167_reg45_sig     :std_logic_vector(7 downto 0) := X"17";  --for +3 statistics, byte 2
+    signal c167_reg46_sig     :std_logic_vector(7 downto 0) := X"18";  --for +3 statistics, MSB
+    signal c167_reg47_sig     :std_logic_vector(7 downto 0) := X"19";  --for +1 statistics, LSB
+    signal c167_reg48_sig     :std_logic_vector(7 downto 0) := X"1a";  --for +1 statistics, byte 1
+    signal c167_reg49_sig     :std_logic_vector(7 downto 0) := X"1b";  --for +1 statistics, byte 2
+    signal c167_reg50_sig     :std_logic_vector(7 downto 0) := X"1c";  --for +1 statistics, MSB
+    signal c167_reg51_sig     :std_logic_vector(7 downto 0) := X"1d";  --for -1 statistics, LSB
+    signal c167_reg52_sig     :std_logic_vector(7 downto 0) := X"1e";  --for -1 statistics, byte 1
+    signal c167_reg53_sig     :std_logic_vector(7 downto 0) := X"1f";  --for -1 statistics, byte 2
+    signal c167_reg54_sig     :std_logic_vector(7 downto 0) := X"20";  --for -1 statistics, MSB
+    signal c167_reg55_sig     :std_logic_vector(7 downto 0) := X"21";  --for -3 statistics, LSB
+    signal c167_reg56_sig     :std_logic_vector(7 downto 0) := X"22";  --for -3 statistics, byte 1
+    signal c167_reg57_sig     :std_logic_vector(7 downto 0) := X"23";  --for -3 statistics, byte 2
+    signal c167_reg58_sig     :std_logic_vector(7 downto 0) := X"24";  --for -3 statistics, MSB
+    
+
+    --c167 bus clock and control signals                                   -                                                                    
     signal C167_CLK_sig      :std_logic;                    --clock for those registers
     signal data_from_cpu_sig : std_logic_vector(7 downto 0);    
     signal data_to_cpu_sig   : std_logic_vector(7 downto 0);
-    signal C167_RD_EN_sig    :std_logic_vector(31 downto 0); --one line goes high
-    signal C167_WR_EN_sig    :std_logic_vector(31 downto 0); --one line goes high   
+--    signal C167_RD_EN_sig    :std_logic_vector(31 downto 0); --one line goes high
+--    signal C167_WR_EN_sig    :std_logic_vector(31 downto 0); --one line goes high  
+    signal C167_WE_sig       :std_logic; --write to register when low and ctrl_data is low
+    signal C167_ADDR_sig     :std_logic_vector(7 downto 0); --address for read/write 
     
     --signals for DAC
     signal DAC_CLK_p_sig        : std_logic;
@@ -373,10 +444,6 @@ end record HdrArray;
     signal CLKINSTOPPED_sig     :std_logic;  --clock input stopped test point from MMCM
     signal LOCKED_sig           :std_logic;  --clock locked test point from MMCM
     signal RST_sig              :std_logic := '0';  --MMCM reset
-           
-    
-            
-    
    
     --status signals
     signal DONE_sig             :std_logic := '1';
@@ -447,7 +514,32 @@ begin
      ); 
 
     -- Output for DAC data; single ended so don't need to specify buffers here    
-
+    
+    -- instantiate details of C167 register 12
+      REG12: for i in 0 to REG12_LGTH generate
+        FIRST: if i = 0 generate
+          REG12_0: treg8
+            port map (
+	            D  => data_from_cpu_sig,
+	            Q	 => QREG12(i),	
+	            CE => C167_reg12_CE_sig,
+	            CK => C167_CLK_sig
+            );
+          end generate FIRST;
+  
+        OTH: if (i > 0) AND (i <= REG12_LGTH - 1) generate
+          REG12_x: treg8
+            port map (
+              D  => QREG12(i-1),
+	            Q	 => QREG12(i),	
+	            CE => C167_reg12_CE_sig,
+	            CK => C167_CLK_sig
+           );
+        end generate OTH;
+      end generate REG12; 
+      c167_reg12_Q_sig <= QREG12(REG12_LGTH - 1);  -- for readability
+      
+    -- Output for DAC data; single ended so don't need to specify buffers here 
     --connect signals to ports
     DAC_CLK_p <= DAC_CLK_p_sig;
     DAC_CLK_n <= DAC_CLK_n_sig;      
@@ -459,8 +551,6 @@ begin
     PPS_PIC_n <= PPS_PIC_n_sig;    
 
    -- buffer for TE signal
-
-   
     TE_buf: IBUFDS
    generic map (
       CAPACITANCE => "DONT_CARE", -- "LOW", "NORMAL", "DONT_CARE" (Virtex-4 only)
@@ -475,6 +565,7 @@ begin
       IB => TE_n -- Diff_n clock buffer input (connect directly to top-level port)
    );  
 
+    --buffer for auxtime signal (not used for anything)
     AUXTIME_buf: IBUFDS
    generic map (
       CAPACITANCE => "DONT_CARE", -- "LOW", "NORMAL", "DONT_CARE" (Virtex-4 only)
@@ -610,7 +701,7 @@ LOCKED => LOCKED_sig, -- 1-bit output: LOCK output
 CLKIN1 => adc_clk, -- 1-bit input: Primary clock input
 CLKIN2 => C125, -- 1-bit input: Secondary clock input
 -- Control Ports: 1-bit (each) input: MMCM control ports
-CLKINSEL => '1', -- 1-bit input: Clock select input
+CLKINSEL => c167_reg0_sig(0), -- 1-bit input: Clock select input; High = CLKIN1, Low = CLKIN2
 PWRDWN => '0', -- 1-bit input: Power-down input
 RST => RST_sig, -- 1-bit input: Reset input
 -- DRP Ports: 7-bit (each) input: Dynamic reconfigration ports
@@ -805,9 +896,34 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
  
             case (DeviceAddr(7 downto 2)) is
             when "000000" => DeviceDataOut <= SyncWord;      --0x0000
-            when "000001" => DeviceDataOut <= x"000001" & c167_reg0_sig;      --0x0004
-            when "000010" => DeviceDataOut <= x"000002" & c167_reg1_sig;      --0x0008
-            when "000011" => DeviceDataOut <= x"000003" & c167_reg2_sig;      --0x00012
+            when "000001" => DeviceDataOut <= x"000001" & c167_reg0_sig;      --register 0
+            when "000010" => DeviceDataOut <= x"000002" & c167_reg1_sig;      --register 1
+            when "000011" => DeviceDataOut <= x"000003" & c167_reg2_sig;      --register 2
+            when "000100" => DeviceDataOut <= x"00000C" & c167_reg12_Q_sig;    --register 12
+            when "000101" => DeviceDataOut <= x"00000D" & c167_reg13_sig;      --register 13            
+            when "000110" => DeviceDataOut <= x"00000E" & c167_reg14_sig;      --register 14
+            when "000111" => DeviceDataOut <= x"00000F" & c167_reg15_sig;      --register 15
+            when "001000" => DeviceDataOut <= x"000010" & c167_reg16_sig;      --register 16
+            when "001001" => DeviceDataOut <= x"000011" & c167_reg17_sig;      --register 17
+            when "001010" => DeviceDataOut <= x"000012" & c167_reg18_sig;      --register 18
+            when "001011" => DeviceDataOut <= x"000013" & c167_reg19_sig;      --register 19
+            when "001100" => DeviceDataOut <= x"000014" & c167_reg20_sig;      --register 20
+            when "001101" => DeviceDataOut <= x"000015" & c167_reg21_sig;      --register 21
+            when "001110" => DeviceDataOut <= x"000016" & c167_reg22_sig;      --register 22                        
+            when "001111" => DeviceDataOut <= x"000016" & c167_reg23_sig;      --register 23
+            when "010000" => DeviceDataOut <= x"000016" & c167_reg24_sig;      --register 24
+            when "010001" => DeviceDataOut <= x"000016" & c167_reg25_sig;      --register 25
+            when "010010" => DeviceDataOut <= x"000016" & c167_reg26_sig;      --register 26
+            when "010011" => DeviceDataOut <= x"000016" & c167_reg27_sig;      --register 27
+            when "010100" => DeviceDataOut <= x"000016" & c167_reg28_sig;      --register 28
+            when "010101" => DeviceDataOut <= x"000016" & c167_reg29_sig;      --register 29
+            when "010110" => DeviceDataOut <= x"000016" & c167_reg30_sig;      --register 30
+            when "010111" => DeviceDataOut <= x"000016" & c167_reg31_sig;      --register 31
+            when "011000" => DeviceDataOut <= x"000016" & c167_reg32_sig;      --register 32
+            when "011001" => DeviceDataOut <= x"000016" & c167_reg33_sig;      --register 33
+            when "011010" => DeviceDataOut <= x"000016" & c167_reg34_sig;      --register 34
+            
+            --entires below are from VLBA interface and should probably be deleted at some point
 --            when x"000" => DeviceDataOut <= SyncWord(15 downto 0);      --0x0000
 --            when x"001" => DeviceDataOut <= SyncWord(31 downto 16);     --0x0002
 --            when x"002" => DeviceDataOut <= x"00" & RefEpoch;           --0x0004
@@ -970,35 +1086,36 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
 -------------------------------------------------------------------------------
 
     -- adjust the delay according to the data path
-    dlySel : process (adc_clk)
-    begin
-        if rising_edge(adc_clk) then
-
-            -- set sample rate delay for all channels from chan(0)...
-            -- ...this code says all channels must be at the same sample
-            -- rate to get the data to align with external world.
-            if SampleRateA(0)(5 downto 0) = "00000" then
-                 selRate <= SampleRateA(0)(22 downto 21) OR
-                    (NOT SampleRateA(0)(23) & NOT SampleRateA(0)(23));
-            else
-                 selRate <= "11";
-            end if;
-
-
-            case(selRate)is
-                when "10" =>     -- 1x data rate (128MHz)
-                    IntDelay <= WVR_DELAY;
-                when "01" =>    -- 2x data rate (64MHz)
-                    IntDelay <= WVR_DELAY + MUX_DELAY + FIR_DELAY;
-                when "00" =>    -- 4x data rate (32MHz)
-                    IntDelay <= WVR_DELAY + MUX_DELAY + FIR_DELAY + 1;
-                when others =>    -- more than 4x data rate (16MHz or less)
-                    IntDelay <= WVR_DELAY + CIC_DELAY + MUX_DELAY + FIR_DELAY;
-            end case;
-
-            TotalDelay <= TimeAlign_adc + IntDelay;
-        end if;
-    end process dlySel;
+    -- VLBA code; comment out for now
+--    dlySel : process (adc_clk)
+--    begin
+--        if rising_edge(adc_clk) then
+--
+--            -- set sample rate delay for all channels from chan(0)...
+--            -- ...this code says all channels must be at the same sample
+--            -- rate to get the data to align with external world.
+--            if SampleRateA(0)(5 downto 0) = "00000" then
+--                 selRate <= SampleRateA(0)(22 downto 21) OR
+--                    (NOT SampleRateA(0)(23) & NOT SampleRateA(0)(23));
+--            else
+--                 selRate <= "11";
+--            end if;
+--
+--
+--          case(selRate)is
+--                when "10" =>     -- 1x data rate (128MHz)
+--                    IntDelay <= WVR_DELAY;
+--                when "01" =>    -- 2x data rate (64MHz)
+--                    IntDelay <= WVR_DELAY + MUX_DELAY + FIR_DELAY;
+--                when "00" =>    -- 4x data rate (32MHz)
+--                    IntDelay <= WVR_DELAY + MUX_DELAY + FIR_DELAY + 1;
+--                when others =>    -- more than 4x data rate (16MHz or less)
+--                    IntDelay <= WVR_DELAY + CIC_DELAY + MUX_DELAY + FIR_DELAY;
+--            end case;
+--
+--            TotalDelay <= TimeAlign_adc + IntDelay;
+--        end if;
+--    end process dlySel;
 
     -- wait for start time: 'ValidFlag' signals the start time for test
     dlySt : process (adc_clk)
@@ -1021,98 +1138,101 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
 -------------------------------------------------------------------------------
     -- Frame Counter - different end count depending on decimation rate.
     -- Use OnePPS and EndOfPacket flag to reset the Frame Counter or count up.
-    fctr : process(OPB_Clk)
-    begin
-        if rising_edge(OPB_Clk) then
-            if (pps_sys = '1')then
-                arm <= '1';
-            elsif (arm = '1') AND (ccCntrState = ccStartWait) then
-                if (ppsFinish = '0') then --1st frame of this second
-                    for i in 0 to (nch-1) loop
-                        FrameNum(i) <=  (others => '0');
-                    end loop;
-                    arm <= '0';
-                -- else clear after this frame
-               end if;
-            elsif (ccCntrState = ccIncFrame) then
-                FrameNum(currCh) <= FrameNum(currCh) + 1;
-            end if;
-        end if;
-    end process;
+    -- VLBA code; comment out for now; delete later
+--    fctr : process(OPB_Clk)
+--    begin
+--        if rising_edge(OPB_Clk) then
+--            if (pps_sys = '1')then
+--                arm <= '1';
+--            elsif (arm = '1') AND (ccCntrState = ccStartWait) then
+--                if (ppsFinish = '0') then --1st frame of this second
+--                    for i in 0 to (nch-1) loop
+--                        FrameNum(i) <=  (others => '0');
+--                    end loop;
+--                    arm <= '0';
+--                -- else clear after this frame
+--               end if;
+--            elsif (ccCntrState = ccIncFrame) then
+--                FrameNum(currCh) <= FrameNum(currCh) + 1;
+--            end if;
+--        end if;
+--    end process;
 
 -------------------------------------------------------------------------------
 -- change channels each time the fifo has been read 625 times in formatter
-    chcntr : process(OPB_Clk)
-    begin
-        if rising_edge(OPB_Clk) then
-            if (ValidFlag_sys = '0') then
-                currCh <= 0;
-                FmtrEna <= '0';
-                ccCntrState <= ccStartWait;
-                ppsFinish <= '0';
-            else
-                case(ccCntrState) is
-                    when ccStartWait =>     -- wait for start of frame
-                        if prog_full(0) = '0' then
-                            ccCntrState <= ccFifoFull;
-                        end if;
-                    when ccFifoFull =>
-                        if prog_full(currCh) = '0' then -- send a packet for
-                            ccCntrState <= ccWaitFE1;   -- this channel
-                            FmtrEna <= '1';
-                        else
-                            ccCntrState <= ccIncCh;     -- go to next channel
-                        end if;
-                        ppsFinish <= '0';
-                    when ccWaitFE1 =>
-                        if FifoEna = '1' then
-                            ccCntrState <= ccWaitFE0;   -- packet tx started
-                        end if;
-                    when ccWaitFE0 =>
-                        if FifoEna = '0' then
-                            ccCntrState <= ccIncFrame;  -- packet tx ended
-                            FmtrEna <= '0';
-                        end if;
-                    when ccIncFrame =>      -- frame counter for this channel
-                        ccCntrState <= ccIncCh;
-                    when ccIncCh =>
-                        if(currCh < nch-1) then
-                            currCh <= currCh + 1;
-                            ccCntrState <= ccFifoFull;
-                        else
-                            currCh <= 0;
-                            ccCntrState <= ccStartWait; -- next frame
-                            if(arm = '1')  then
-                                ppsFinish <= NOT ppsFinish;
-                            end if;--tell FrameNum whether or not to clear
-                        end if;
-                    when others =>  --huh?
-                        ccCntrState <= ccStartWait;
-                end case;
-            end if;
-        end if;
-    end process;
+-- VLBA code; comment out for now; delete later
+--    chcntr : process(OPB_Clk)
+--    begin
+--        if rising_edge(OPB_Clk) then
+--            if (ValidFlag_sys = '0') then
+--                currCh <= 0;
+--                FmtrEna <= '0';
+--                ccCntrState <= ccStartWait;
+--                ppsFinish <= '0';
+--            else
+--                case(ccCntrState) is
+--                    when ccStartWait =>     -- wait for start of frame
+--                        if prog_full(0) = '0' then
+--                            ccCntrState <= ccFifoFull;
+--                        end if;
+--                    when ccFifoFull =>
+--                        if prog_full(currCh) = '0' then -- send a packet for
+--                            ccCntrState <= ccWaitFE1;   -- this channel
+--                            FmtrEna <= '1';
+--                        else
+--                            ccCntrState <= ccIncCh;     -- go to next channel
+--                        end if;
+--                        ppsFinish <= '0';
+--                    when ccWaitFE1 =>
+--                        if FifoEna = '1' then
+--                            ccCntrState <= ccWaitFE0;   -- packet tx started
+--                        end if;
+--                    when ccWaitFE0 =>
+--                        if FifoEna = '0' then
+--                            ccCntrState <= ccIncFrame;  -- packet tx ended
+--                            FmtrEna <= '0';
+--                        end if;
+--                    when ccIncFrame =>      -- frame counter for this channel
+--                        ccCntrState <= ccIncCh;
+--                    when ccIncCh =>
+--                        if(currCh < nch-1) then
+--                            currCh <= currCh + 1;
+--                            ccCntrState <= ccFifoFull;
+--                        else
+--                            currCh <= 0;
+--                            ccCntrState <= ccStartWait; -- next frame
+--                            if(arm = '1')  then
+--                                ppsFinish <= NOT ppsFinish;
+--                            end if;--tell FrameNum whether or not to clear
+--                        end if;
+--                    when others =>  --huh?
+--                        ccCntrState <= ccStartWait;
+--                end case;
+--            end if;
+--        end if;
+--    end process;
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
-HdrAry.VERS     <= "001";
-HdrAry.FrameLen <= x"000275"; --629d=units of 8bytes=5032bytes,including header
-HdrAry.EDV      <= x"02";
-HdrAry.MajRev   <= REV_MAJOR_INT(3 downto 0);
-HdrAry.MinRev   <= REV_MAJOR_FRAC(3 downto 0);
-HdrAry.Persnlity<= P_TYPE;
+-- HdrAry was used in VLBA design; comment out for now; delete later
+--HdrAry.VERS     <= "001";
+--HdrAry.FrameLen <= x"000275"; --629d=units of 8bytes=5032bytes,including header
+--HdrAry.EDV      <= x"02";
+--HdrAry.MajRev   <= REV_MAJOR_INT(3 downto 0);
+--HdrAry.MinRev   <= REV_MAJOR_FRAC(3 downto 0);
+--HdrAry.Persnlity<= P_TYPE;
 
--- fill in the header block each time the channel changes
-    HdrBlk(0) <= HdrAry.InvFlg & HdrAry.Legacy & HdrAry.SFRE &
-                    HdrAry.RefEpoch & HdrAry.FrameNum;
-    HdrBlk(1) <= HdrAry.VERS & HdrAry.LogCh & HdrAry.FrameLen &
-                    HdrAry.CmplxFlg & HdrAry.Bits_Samp &
-                    HdrAry.ThreadID & HdrAry.StationID;
-    HdrBlk(2) <= HdrAry.EDV & HdrAry.SRU &
-                    HdrAry.SYNC;
-    HdrBlk(3) <= HdrAry.LoifFtw &
-                    "1111" & HdrAry.DBEnum & HdrAry.IFnum & HdrAry.SubBand &
-                    HdrAry.ESideBand & HdrAry.MajRev & HdrAry.MinRev &
-                    HdrAry.Persnlity;
+-- fill in the header block each time the channel changes; from VLBA design; comment out
+--    HdrBlk(0) <= HdrAry.InvFlg & HdrAry.Legacy & HdrAry.SFRE &
+--                    HdrAry.RefEpoch & HdrAry.FrameNum;
+--    HdrBlk(1) <= HdrAry.VERS & HdrAry.LogCh & HdrAry.FrameLen &
+--                    HdrAry.CmplxFlg & HdrAry.Bits_Samp &
+--                    HdrAry.ThreadID & HdrAry.StationID;
+--    HdrBlk(2) <= HdrAry.EDV & HdrAry.SRU &
+--                    HdrAry.SYNC;
+--    HdrBlk(3) <= HdrAry.LoifFtw &
+--                    "1111" & HdrAry.DBEnum & HdrAry.IFnum & HdrAry.SubBand &
+--                    HdrAry.ESideBand & HdrAry.MajRev & HdrAry.MinRev &
+--                    HdrAry.Persnlity;
 
 -------------------------------------------------------------------------------
     -- seconds from epoch is reported in header instead of TimeCode
@@ -1131,37 +1251,37 @@ HdrAry.Persnlity<= P_TYPE;
     end process;
 --SecFromRefEpoch <= EpochSeconds(29 downto 0);       -- rename
 -------------------------------------------------------------------------------
-    -- change clock domains to OPB_Clk
-    syncsys : process(OPB_Clk)
-    begin
-        if rising_edge(OPB_Clk) then
-            ValidFlag_sys       <= ValidFlag;
-            if ccCntrState = ccFifoFull then
-                HdrAry.InvFlg       <= (NOT ValidFlag) OR FifoError;
-                HdrAry.Legacy       <= Legacy;
-                HdrAry.SFRE         <= EpochSeconds;
-                HdrAry.RefEpoch     <= RefEpoch;
-                HdrAry.LogCh        <= log2numchan;
-                HdrAry.FrameNum     <= FrameNum(currCh);
-                HdrAry.CmplxFlg     <= ComplexFlags(currCh);
-                HdrAry.Bits_Samp    <= Bits_SampA(currCh);
-                HdrAry.ThreadID     <= std_logic_vector(to_unsigned(currCh,10));
-                HdrAry.StationID    <= StationID;
-                HdrAry.SRU          <= SampleRateA(currCh);
-                HdrAry.SYNC         <= SyncWord;
-                --HdrAry.LoifFtw      <= LoifFtwA(currCh);
-                HdrAry.DBEnum       <= DBEnum;
-                HdrAry.IFnum        <= IFnumA(currCh);
-                HdrAry.SubBand      <= SubBandA(currCh)(2 downto 0);
-                HdrAry.ESideBand    <= ESideBand(currCh);
-                if TestMode = '0' then
-                    HdrAry.LoifFtw <= LoifFtwA(currCh);
-                else
-                    HdrAry.LoifFtw <= TimeCntr & LoifFtwA(currCh)(15 downto 0);
-                end if;
-            end if;
-        end if;
-    end process;
+    -- change clock domains to OPB_Clk; from VLBA design; comment out for now
+--    syncsys : process(OPB_Clk)
+--    begin
+--        if rising_edge(OPB_Clk) then
+--            ValidFlag_sys       <= ValidFlag;
+--            if ccCntrState = ccFifoFull then
+--                HdrAry.InvFlg       <= (NOT ValidFlag) OR FifoError;
+--                HdrAry.Legacy       <= Legacy;
+--                HdrAry.SFRE         <= EpochSeconds;
+--                HdrAry.RefEpoch     <= RefEpoch;
+--                HdrAry.LogCh        <= log2numchan;
+--                HdrAry.FrameNum     <= FrameNum(currCh);signal c167_reg34_sig     :std_logic_vector(7 downto 0) := X"0c";  --for MSB of PPS_TE_Off
+--                HdrAry.CmplxFlg     <= ComplexFlags(currCh);
+--                HdrAry.Bits_Samp    <= Bits_SampA(currCh);
+--                HdrAry.ThreadID     <= std_logic_vector(to_unsigned(currCh,10));
+--                HdrAry.StationID    <= StationID;
+--                HdrAry.SRU          <= SampleRateA(currCh);
+--                HdrAry.SYNC         <= SyncWord;
+--                --HdrAry.LoifFtw      <= LoifFtwA(currCh);
+--                HdrAry.DBEnum       <= DBEnum;
+--                HdrAry.IFnum        <= IFnumA(currCh);
+--                HdrAry.SubBand      <= SubBandA(currCh)(2 downto 0);
+--                HdrAry.ESideBand    <= ESideBand(currCh);
+--                if TestMode = '0' then
+--                    HdrAry.LoifFtw <= LoifFtwA(currCh);
+--                else
+--                    HdrAry.LoifFtw <= TimeCntr & LoifFtwA(currCh)(15 downto 0);
+--                end if;
+--            end if;
+--        end if;
+--    end process;
 
 -------------------------------------------------------------------------------
     -- change clock domains to adc_clk
@@ -1276,43 +1396,101 @@ HdrAry.Persnlity<= P_TYPE;
 		   data_from_cpu => data_from_cpu_sig,	-- data_from_CPU, must be used together with C167_WR_EN(X) being 0<=X<=31
 --		   data_to_cpu => SyncWord(7 downto 0), 		-- data_to_CPU, must be used together with C167_RR_EN(X) being 0<=X<=31
 		   data_to_cpu => data_to_cpu_sig, 		-- data_to_CPU, must be used together with C167_RR_EN(X) being 0<=X<=31		   
-		   C167_RD_EN => C167_RD_EN_sig,			-- Read enable signals, they must be individually connected to the tri-state controller associated to teh desired signals
-		   C167_WR_EN	=> C167_Wr_EN_sig,	-- Write enable signals, they must be individually connected to the "clock enable" associated to the addressed register.
-		   C167_CLK	=> C167_CLK_sig				-- C167 clock signal, the first 4 clocks were removed.
+--		   C167_RD_EN => C167_RD_EN_sig,			-- Read enable signals, they must be individually connected to the tri-state controller associated to teh desired signals
+--		   C167_WR_EN	=> C167_Wr_EN_sig,	-- Write enable signals, they must be individually connected to the "clock enable" associated to the addressed register.
+		   C167_WE	=> C167_WE_sig,				-- C167 clock signal, the first 4 clocks were removed.
+ 		   C167_ADDR	=> C167_ADDR_sig,				-- C167 clock signal, the first 4 clocks were removed.
+		   C167_CLK	=> C167_CLK_sig				-- C167 clock signal
 	);
 	
 	--process for testing C167 interface
-	test_C167: process(C167_CLK_sig, C167_RD_EN_sig)
+	C167_reg_read: process(C167_CLK_sig, C167_addr_sig)
 	begin
-	
-
-   	case (C167_RD_EN_sig) is
-        when X"00000001" => data_to_cpu_sig <= c167_reg0_sig;     
-        when X"00000002" => data_to_cpu_sig <= c167_reg1_sig;     
-        when X"00000004" => data_to_cpu_sig <= c167_reg2_sig;
+	   	case (C167_ADDR_sig) is
+        when X"00" => data_to_cpu_sig <= c167_reg0_sig;     
+        when X"01" => data_to_cpu_sig <= c167_reg1_sig;     
+        when X"02" => data_to_cpu_sig <= c167_reg2_sig;
+        when X"0C" => data_to_cpu_sig <= c167_reg12_Q_sig;
+        when X"0D" => data_to_cpu_sig <= c167_reg13_sig;
+        when X"0E" => data_to_cpu_sig <= c167_reg14_sig;
+        when X"0F" => data_to_cpu_sig <= c167_reg15_sig;
+        when X"10" => data_to_cpu_sig <= c167_reg16_sig;
+        when X"11" => data_to_cpu_sig <= c167_reg17_sig;
+        when X"12" => data_to_cpu_sig <= c167_reg18_sig;
+        when X"13" => data_to_cpu_sig <= c167_reg19_sig;
+        when X"14" => data_to_cpu_sig <= c167_reg20_sig;
+        when X"15" => data_to_cpu_sig <= c167_reg21_sig;
+        when X"16" => data_to_cpu_sig <= c167_reg22_sig;
+        when X"17" => data_to_cpu_sig <= c167_reg23_sig;
+        when X"18" => data_to_cpu_sig <= c167_reg24_sig;
+        when X"19" => data_to_cpu_sig <= c167_reg25_sig;
+        when X"1a" => data_to_cpu_sig <= c167_reg26_sig;
+        when X"1b" => data_to_cpu_sig <= c167_reg27_sig;
+        when X"1c" => data_to_cpu_sig <= c167_reg28_sig;
+        when X"1d" => data_to_cpu_sig <= c167_reg29_sig;
+        when X"1e" => data_to_cpu_sig <= c167_reg30_sig;
+        when X"1f" => data_to_cpu_sig <= c167_reg31_sig;
+        when X"20" => data_to_cpu_sig <= c167_reg32_sig;
+        when X"21" => data_to_cpu_sig <= c167_reg33_sig;
+        when X"22" => data_to_cpu_sig <= c167_reg34_sig;
+        when X"23" => data_to_cpu_sig <= c167_reg35_sig;
+        when X"24" => data_to_cpu_sig <= c167_reg36_sig;
+        when X"25" => data_to_cpu_sig <= c167_reg37_sig;
+        when X"26" => data_to_cpu_sig <= c167_reg38_sig;
+        when X"27" => data_to_cpu_sig <= c167_reg39_sig;
+        when X"28" => data_to_cpu_sig <= c167_reg40_sig;
+        when X"29" => data_to_cpu_sig <= c167_reg41_sig;
+        when X"2a" => data_to_cpu_sig <= c167_reg42_sig;
+        when X"2b" => data_to_cpu_sig <= c167_reg43_sig;
+        when X"2c" => data_to_cpu_sig <= c167_reg44_sig;
+        when X"2d" => data_to_cpu_sig <= c167_reg45_sig;
+        when X"2e" => data_to_cpu_sig <= c167_reg46_sig;
+        when X"2f" => data_to_cpu_sig <= c167_reg47_sig;
+        when X"30" => data_to_cpu_sig <= c167_reg48_sig;
+        when X"31" => data_to_cpu_sig <= c167_reg49_sig;
+        when X"32" => data_to_cpu_sig <= c167_reg50_sig;
+        when X"33" => data_to_cpu_sig <= c167_reg51_sig;
+        when X"34" => data_to_cpu_sig <= c167_reg52_sig;
+        when X"35" => data_to_cpu_sig <= c167_reg53_sig;
+        when X"36" => data_to_cpu_sig <= c167_reg54_sig;
+        when X"37" => data_to_cpu_sig <= c167_reg55_sig;
+        when X"38" => data_to_cpu_sig <= c167_reg56_sig;
+        when X"39" => data_to_cpu_sig <= c167_reg57_sig;
+        when X"3a" => data_to_cpu_sig <= c167_reg58_sig;
+        
         when others  => data_to_cpu_sig <= (others => '0');  
     end case;       
-    
+ 	end process;   
 
-	   if rising_edge(C167_CLK_sig) then
-   	   case (C167_WR_EN_sig) is
-          when X"0000_0001" => c167_reg0_sig <= data_from_cpu_sig;     
-          when X"0000_0002" => c167_reg1_sig <= data_from_cpu_sig;   
-          when X"0000_0004" => c167_reg2_sig <= data_from_cpu_sig;
-          when others  => null;  
-       end case;
-        
---       if(C167_WR_EN_sig > 0) then
---          test_port_sig(7 downto 0) <= test_port_sig(7 downto 0) + 1;      
---       end if;
-
---       if(C167_RD_EN_sig > 0) then
---          test_port_sig(15 downto 8) <= test_port_sig(15 downto 8) + 1;
---       end if;
-        
---       test_port_sig(31 downto 16) <= test_port_sig(31 downto 16) + 1;
-     end if;    
-                                 
+	C167_reg_write: process(C167_CLK_sig)
+	begin
+	   if (rising_edge(C167_CLK_sig))  then
+	     if(C167_WE_sig = '0') then
+   	     case (C167_ADDR_sig) is
+            when X"00" => c167_reg0_sig   <= data_from_cpu_sig;     
+            when X"01" => c167_reg1_sig   <= data_from_cpu_sig;   
+            when X"02" => c167_reg2_sig   <= data_from_cpu_sig;             
+            when X"0D" => c167_reg13_sig  <= data_from_cpu_sig;
+            when X"0E" => c167_reg14_sig  <= data_from_cpu_sig;
+            when X"0F" => c167_reg15_sig  <= data_from_cpu_sig;
+            when X"10" => c167_reg16_sig  <= data_from_cpu_sig;
+            when X"11" => c167_reg17_sig  <= data_from_cpu_sig;
+            when X"12" => c167_reg18_sig  <= data_from_cpu_sig;
+            when X"13" => c167_reg19_sig  <= data_from_cpu_sig;
+            when X"14" => c167_reg20_sig  <= data_from_cpu_sig;
+            when X"15" => c167_reg21_sig  <= data_from_cpu_sig;
+            when X"16" => c167_reg22_sig  <= data_from_cpu_sig;
+            --the rest of the registers are read only
+            when others  => null;  
+         end case;
+       end if;
+     end if; 
+     --special case of register 12
+     if((C167_WE_sig = '0') AND ( c167_ADDR_sig = X"0C")) then 
+       C167_reg12_CE_sig <= '1';
+     else
+       C167_reg12_CE_sig <= '0';
+     end if;                                   
 	end process;
 	
 	-------------------------------------------------------------------------------
@@ -1406,24 +1584,32 @@ HdrAry.Persnlity<= P_TYPE;
 --ROUTB(3 downto 0) test points  	          
   ROUTB_sig(0) <= test_ctr(7);
   ROUTB_sig(1) <= test_ctr_fifo(7);
-  ROUTB_sig(2) <= adc_clk;
+  ROUTB_sig(2) <= test_ctr_125(7);
   ROUTB_sig(3) <= C125;  
 	
 --process for generating test frequencies
-get_tst_freq: process(C125)
+get_tst_freq: process(adc_clk)
 	begin
 	  if(rising_edge(adc_clk)) then
 	     test_ctr <= test_ctr + 1;
 	  end if;
 	end process;	
 	
-	--process for generating test frequencies
+	--process for generating test frequency from 125 MHz clock
 get_tst_freq2: process(C125)
 	begin
 	  if(rising_edge(C125)) then
-	     test_ctr_fifo <= test_ctr_fifo + 1;
+	     test_ctr_125 <= test_ctr_125 + 1;
 	  end if;
 	end process;	
+	
+		--process for generating test frequencies
+get_tst_freq3: process(CFIFO)
+	begin
+	  if(rising_edge(CFIFO)) then
+	     test_ctr_fifo <= test_ctr_fifo + 1;
+	  end if;
+	end process;
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 end architecture vdif_arch;
