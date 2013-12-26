@@ -182,6 +182,30 @@ is
           CK: in  std_logic
        );
     end component treg8;
+    
+  component data_interface  --has input data checking, statistics, test_data generator and data select
+     port(  
+        sum_data   : in std_logic_vector(63 downto 0); --sum data
+        C125       : in std_logic; --clock from timing generator
+        Grs        : in std_logic;
+        chan       : in std_logic_vector(5 downto 0);
+        stat_msec  : in std_logic_vector(6 downto 0);
+        prn_run    : in std_logic;
+        stat_start : in std_logic;
+        OneMsec    : in std_logic;
+        ecnt       : out std_logic_vector(7 downto 0);
+        stat_p3    : out std_logic_vector(23 downto 0);
+        stat_p1    : out std_logic_vector(23 downto 0);
+        stat_m1    : out std_logic_vector(23 downto 0);
+        stat_m3    : out std_logic_vector(23 downto 0);
+        stat_rdy   : out std_logic;
+        td_sel     : in std_logic_vector(2 downto 0);
+        frm_sync   : in std_logic;
+        td_out     : out std_logic_vector(63 downto 0);
+        data_sel   : in std_logic;
+        sum_di     : out std_logic_vector(63 downto 0)
+     );
+   end component;    
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
     -- maximum number of channels that can be used. Initially set to 7.
@@ -327,12 +351,14 @@ is
     signal IntDelay         : std_logic_vector(15 downto 0);
     signal ppsFinish        : std_logic;
 
-    -- data capture signals
+    -- clock and data signals
     signal clk_p         : std_logic;
     signal clk_n         : std_logic;   
     signal sum_data    : std_logic_vector(63 downto 0);  
     signal clk_out       : std_logic;
     signal sum_out       : std_logic_vector(63 downto 0);
+    signal DATA2_sig     : std_logic_vector(63 downto 0); -- connect data_interface to data_formatter
+    signal DATA3_sig     : std_logic_vector(63 downto 0); -- connect data_formatter to 10 GbE
 
     --signals for opb acknowledge
     signal ackSigW         :  std_logic := '0';
@@ -352,6 +378,8 @@ is
     signal C125            : std_logic;                    -- for testing C125 clock  
     signal ROUTB_sig       : std_logic_vector(3 downto 0) := "0000";
     signal TimeCode_sig    : std_logic_vector(31 downto 0) := X"0000_0000";
+    signal td_out_sig      : std_logic_vector(63 downto 0) := X"0000_0000_0000_0000";
+    
         
     --C167 registers
     signal c167_reg0_sig     :std_logic_vector(7 downto 0) := X"00";  --initialization register
@@ -409,7 +437,8 @@ is
     signal c167_reg56_sig     :std_logic_vector(7 downto 0) := X"22";  --for -3 statistics, byte 1
     signal c167_reg57_sig     :std_logic_vector(7 downto 0) := X"23";  --for -3 statistics, byte 2
     signal c167_reg58_sig     :std_logic_vector(7 downto 0) := X"24";  --for -3 statistics, MSB
-    
+    signal td_sel_sig         :std_logic_vector(2 downto 0) := "000";  --ctrl bits derived from reg 14
+    signal data_sel_sig       :std_logic:= '0';                        --ctrl bits derived from reg 14
 
     --c167 bus clock and control signals                                   -                                                                    
     signal C167_CLK_sig      :std_logic;                    --clock for those registers
@@ -444,11 +473,21 @@ is
     signal CLKINSTOPPED_sig     :std_logic;  --clock input stopped test point from MMCM
     signal LOCKED_sig           :std_logic;  --clock locked test point from MMCM
     signal RST_sig              :std_logic := '0';  --MMCM reset
+    --temporary counter to generate OneMsec until we integrate the timing_gen module
+    signal OneMsecCtr           : std_logic_vector(17 downto 0) := "000000000000000000";
+    signal OneMsecRst          : std_logic; 
+    
+    signal frm_sync_sig         : std_logic := '0';
    
     --status signals
     signal DONE_sig             :std_logic := '1';
-    signal DLL_sig              :std_logic := '1';    
-        
+    signal DLL_sig              :std_logic := '1';
+    
+    --statistics signals    
+    signal stat_p3_sig          : std_logic_vector(23 downto 0) := X"03_0201";
+    signal stat_p1_sig          : std_logic_vector(23 downto 0) := X"07_0605";
+    signal stat_m1_sig          : std_logic_vector(23 downto 0) := X"0B_0A09";
+    signal stat_m3_sig          : std_logic_vector(23 downto 0) := X"0F_0E0D";
 
 
 
@@ -497,9 +536,9 @@ begin
       IOSTANDARD => "DEFAULT")
       
    port map (
-      O => sum_data(i), -- Clock buffer output
-      I => sum_data_p(i), -- Diff_p clock buffer input (connect directly to top-level port)
-      IB => sum_data_n(i) -- Diff_n clock buffer input (connect directly to top-level port)
+      O => sum_data(i), -- buffer output
+      I => sum_data_p(i), -- Diff_p  buffer input (connect directly to top-level port)
+      IB => sum_data_n(i) -- Diff_n  buffer input (connect directly to top-level port)
    );   
    end generate sum_data_inputs;   
    
@@ -538,6 +577,29 @@ begin
         end generate OTH;
       end generate REG12; 
       c167_reg12_Q_sig <= QREG12(REG12_LGTH - 1);  -- for readability
+      
+   data_interface_0: data_interface
+   port map(
+      sum_data   => sum_data,
+      C125       => C125,        
+      Grs        => c167_reg14_sig(2),          --control reg 0, bit 2 from C167          
+      chan       => c167_reg16_sig(5 downto 0), --control reg 2, bits 5 to 0 from C167       
+      stat_msec  => c167_reg17_sig(6 downto 0), --control reg 3, bits 6 to 0 from C167       
+      prn_run    => c167_reg15_sig(0),          --control reg 1, bit 0 from C167     
+      stat_start => c167_reg15_sig(1),          --control reg 1, bit 1 from C167
+      OneMsec    => OneMsecRst,     
+      ecnt       => c167_reg34_sig,             --error counter reg, target 34        
+      stat_p3    => stat_p3_sig, --statistics, +3, 3 bytes max
+      stat_p1    => stat_p1_sig, --statistics, +1, 3 bytes max     
+      stat_m1    => stat_m1_sig, --statistics, -1, 3 bytes max
+      stat_m3    => stat_m3_sig, --statistics, +3, 3 bytes max
+      stat_rdy   => c167_reg42_sig(0),    
+      td_sel     => td_sel_sig,      
+      frm_sync   => frm_sync_sig,    
+      td_out     => td_out_sig,  
+      data_sel   => data_sel_sig,
+      sum_di     => DATA2_sig 
+   );
       
     -- Output for DAC data; single ended so don't need to specify buffers here 
     --connect signals to ports
@@ -757,12 +819,33 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
   
   --connect DAC signals
   DAC_IN_A_sig <= test_ctr(7 downto 4);
-  DAC_IN_B_sig <= test_ctr(7 downto 4);  
+  DAC_IN_B_sig <= test_ctr(7 downto 4); 
+  
+   --C167-related mappings
+   --because of conflicts between the FPGA requirements and ICD with Computing,
+   --the DOUT bits of C167 control word must be mapped to td_sel and data_sel as follows
+   td_sel_sig(2)     <= ( NOT c167_reg14_sig(7) ) AND ( NOT c167_reg14_sig(6) );
+   td_sel_sig(1)     <=    c167_reg14_sig(7)      AND     c167_reg14_sig(6)    ;
+   td_sel_sig(0)     <=    c167_reg14_sig(6)                                   ;
+   data_sel_sig      <=    c167_reg14_sig(7)      OR      c167_reg14_sig(6)    ;  
+   --C167 statistics mapping 
+   c167_reg43_sig    <= stat_m3_sig(7  downto  0);
+   c167_reg44_sig    <= stat_m3_sig(15 downto  8);
+   c167_reg45_sig    <= stat_m3_sig(23 downto 16);
+   c167_reg47_sig    <= stat_m1_sig(7  downto  0);
+   c167_reg48_sig    <= stat_m1_sig(15 downto  8);
+   c167_reg49_sig    <= stat_m1_sig(23 downto 16);
+   c167_reg51_sig    <= stat_p1_sig(7  downto  0);
+   c167_reg52_sig    <= stat_p1_sig(15 downto  8);
+   c167_reg53_sig    <= stat_p1_sig(23 downto 16);
+   c167_reg55_sig    <= stat_p3_sig(7  downto  0);
+   c167_reg56_sig    <= stat_p3_sig(15 downto  8);
+   c167_reg57_sig    <= stat_p3_sig(23 downto 16);   
+
 
   -- EPB register access process
     RegisterAccess : process(OPB_Rst, epb_clk, OPB_select,
                             OPB_RNW, DeviceAddr(18 downto 0))
-
     begin
 
     if (OPB_Rst = '1') then
@@ -1537,10 +1620,23 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
             data_in(35) => PPS_GPS_sig,            
             data_in(36) => c167_reg0_sig(0),   
             data_in(37) => c167_reg0_sig(7),                      
-            data_in(63 downto 38) => (others => '0'),
+            data_in(38) => OneMsecRst,              
+            data_in(39) => OneMsecCtr(0),
+            data_in(40) => OneMsecCtr(1),
+            data_in(41) => OneMsecCtr(2),
+            data_in(42) => stat_p1_sig(0),
+            data_in(43) => stat_p1_sig(2),
+            data_in(44) => stat_p1_sig(6),  --prg(2) XOR prg(0)
+            data_in(45) => stat_p1_sig(7),
+            data_in(46) => stat_p1_sig(8),
+            data_in(47) => stat_p3_sig(5),
+            data_in(48) => stat_p3_sig(6),
+            data_in(49) => stat_p3_sig(7),
+           
+            data_in(63 downto 50) => (others => '0'),
             data_out => ROACHTP(0)	     
   	     );
-  	     
+	     
 --mux64 for ROACHTP1
 
   mux_rtp1 : mux64
@@ -1578,12 +1674,23 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
             data_in(29) => sum_data(59),
             data_in(30) => sum_data(61),
             data_in(31) => sum_data(63),        --Sum Data MSB channel 31
-            data_in(63 downto 32) => (others => '0'),
-            data_out => ROACHTP(1)
+            data_in(32) => DATA2_sig(0),
+            data_in(33) => DATA2_sig(1),
+            data_in(34) => DATA2_sig(2),
+            data_in(35) => stat_p1_sig(1),
+            data_in(36) => stat_p1_sig(3),
+            data_in(37) => stat_p1_sig(4),
+            data_in(38) => stat_p1_sig(5),
+            data_in(39) => stat_p3_sig(12),
+            data_in(40) => stat_p3_sig(13),  --input data to PRG
+            data_in(63 downto 41) => (others => '0'),
+            data_out => ROACHTP(1)            
   	     );  	
+  	     
 --ROUTB(3 downto 0) test points  	          
   ROUTB_sig(0) <= test_ctr(7);
-  ROUTB_sig(1) <= test_ctr_fifo(7);
+--  ROUTB_sig(1) <= test_ctr_fifo(7);
+  ROUTB_sig(1) <= OneMsecRst;
   ROUTB_sig(2) <= test_ctr_125(7);
   ROUTB_sig(3) <= C125;  
 	
@@ -1610,6 +1717,26 @@ get_tst_freq3: process(CFIFO)
 	     test_ctr_fifo <= test_ctr_fifo + 1;
 	  end if;
 	end process;
+	
+   --temporary process for generating a 1msec tic until we integrate the timing generator module
+   temp_1msec: process(C125)
+   begin
+     if(rising_edge(C125)) then
+       if OneMsecRst = '1' then
+         OneMsecCtr <= "000000000000000000";
+         OneMsecRst <= '0';
+         OneMsecCtr <= OneMsecCtr + 1;
+       else
+--       if OneMsecCtr = X"00003" then
+         if OneMsecCtr = X"1E847" then
+           OneMsecCtr <= "000000000000000000"; 
+           OneMsecRst <= '1';
+         else
+           OneMsecCtr <= OneMsecCtr + 1;
+         end if;
+       end if;
+     end if;  
+   end process;	
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 end architecture vdif_arch;
