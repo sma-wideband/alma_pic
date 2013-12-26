@@ -9,3 +9,8 @@ lib opb_vdif_interface_v1_00_a rdbe_pkg.vhd vhdl
 lib opb_vdif_interface_v1_00_a mux64.vhd vhdl
 lib opb_vdif_interface_v1_00_a fifo_data.vhd vhdl
 lib opb_vdif_interface_v1_00_a treg8.vhd vhdl
+lib opb_vdif_interface_v1_00_a data_interface.vhd vhdl
+lib opb_vdif_interface_v1_00_a out_data_sel.vhd vhdl
+lib opb_vdif_interface_v1_00_a sum_data_chk.vhd vhdl
+lib opb_vdif_interface_v1_00_a test_data_gen.vhd vhdl
+lib opb_vdif_interface_v1_00_a test_prg.vhd vhdl
