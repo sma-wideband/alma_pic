@@ -1,0 +1,11 @@
+# XPS by-products
+hdl/
+__xps/
+synthesis/
+implementation/
+platgen.*
+system*.*
+
+# Emacs by-products
+*~
+\#*\#

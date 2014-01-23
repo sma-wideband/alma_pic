@@ -1,7 +1,0 @@
-lib opb_vdif_interface_v1_00_a opb_vdif_interface.vhd vhdl
-lib opb_vdif_interface_v1_00_a vdif_formatter.vhd vhdl
-lib opb_vdif_interface_v1_00_a vdif_input_sel.vhd vhdl
-lib opb_vdif_interface_v1_00_a vdif_data.vhd vhdl
-lib opb_vdif_interface_v1_00_a VDIF_fifo.vhd vhdl
-lib opb_vdif_interface_v1_00_a vdif_pkg.vhd vhdl
-lib opb_vdif_interface_v1_00_a rdbe_pkg.vhd vhdl
