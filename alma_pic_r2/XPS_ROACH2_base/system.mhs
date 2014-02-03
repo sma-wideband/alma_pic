@@ -49,6 +49,7 @@ PORT C125_clk_p  = C125_clk_p,  DIR = I, SIGIS = CLK, CLK_FREQ = 125000000
  PORT vdif_AUXTIME_p       = vdif_AUXTIME_p, DIR = I
  PORT vdif_AUXTIME_n       = vdif_AUXTIME_n, DIR = I 
  PORT vdif_TIME0      = vdif_TIME0, DIR = O 
+ PORT vdif_TIME1      = vdif_TIME1, DIR = O 
  PORT vdif_DONE       = vdif_DONE, DIR = O 
  PORT vdif_DLL        = vdif_DLL, DIR = O 
  PORT vdif_sum_data_p = vdif_sum_data_p, DIR = I, VEC = [63:0]
@@ -233,6 +234,7 @@ BEGIN opb_vdif_interface
  PORT AUXTIME_p = vdif_AUXTIME_p
  PORT AUXTIME_n = vdif_AUXTIME_n  
  PORT TIME0     = vdif_TIME0 
+ PORT TIME1     = vdif_TIME1 
  PORT DONE      = vdif_DONE
  PORT DLL       = vdif_DLL
 # PORT DataRdy = 0b0000
