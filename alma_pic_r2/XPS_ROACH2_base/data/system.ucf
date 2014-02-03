@@ -448,6 +448,7 @@ NET "vdif_AUXTIME_p"    LOC = "Y38"; #TE signal from system, called TIME_IN on P
 NET "vdif_AUXTIME_n"    LOC = "AA39";
 
 NET "vdif_TIME0"        LOC = "P28"  | IOSTANDARD = "LVCMOS25";
+NET "vdif_TIME1"        LOC = "N31"  | IOSTANDARD = "LVCMOS25";
 
 NET "vdif_DONE"         LOC = "N28"  | IOSTANDARD = "LVCMOS25";
 NET "vdif_DLL"          LOC = "M31"  | IOSTANDARD = "LVCMOS25";
