@@ -7,12 +7,14 @@ use work.rdbe_pkg.all;
 Library UNISIM;
 use UNISIM.vcomponents.all;
 
+-- # $Id: opb_vdif_interface.vhd,v 1.4 2014/01/31 21:09:14 rlacasse Exp $
+
 entity opb_vdif_interface is
   generic ( 
 
     -- Bus protocol parameters
-    C_BASEADDR : std_logic_vector := X"00000000";
-    C_HIGHADDR : std_logic_vector := X"0000FFFF";
+    C_BASEADDR : std_logic_vector := X"00010000";
+    C_HIGHADDR : std_logic_vector := X"0001FFFF";
     C_OPB_AWIDTH : integer := 32;
     C_OPB_DWIDTH : integer := 32;
     C_FAMILY : string := "virtex5";
@@ -68,6 +70,7 @@ entity opb_vdif_interface is
       AUXTIME_p       : in std_logic;   --an extram time signal distributed with the TE; not used, but an FPGA interface in included
       AUXTIME_n       : in std_logic;      
       TIME0           : out std_logic;  --the 48 msec TE signal to the microprocessor interrupt
+      TIME1           : out std_logic;  --the 48 msec TE signal to the microprocessor interrupt      
       DONE            : out std_logic;  --signal to indicate to microprocessor that FPGA is programmed.  Drive high      
       DLL             : out std_logic;  --signal to indicate that DLL is locked.  Eventually tie to MMCM.  For now tie high      
 --      DataRdy         : in std_logic_vector(nch-1 downto 0);
@@ -174,7 +177,7 @@ is
        );
     end component mux64;
     
-        component treg8
+    component treg8
        port(
           D:    in  std_logic_vector(7 downto 0);
           Q:    out std_logic_vector(7 downto 0) := "00000000";
@@ -183,29 +186,64 @@ is
        );
     end component treg8;
     
-  component data_interface  --has input data checking, statistics, test_data generator and data select
-     port(  
-        sum_data   : in std_logic_vector(63 downto 0); --sum data
-        C125       : in std_logic; --clock from timing generator
-        Grs        : in std_logic;
-        chan       : in std_logic_vector(5 downto 0);
-        stat_msec  : in std_logic_vector(6 downto 0);
-        prn_run    : in std_logic;
-        stat_start : in std_logic;
-        OneMsec    : in std_logic;
-        ecnt       : out std_logic_vector(7 downto 0);
-        stat_p3    : out std_logic_vector(23 downto 0);
-        stat_p1    : out std_logic_vector(23 downto 0);
-        stat_m1    : out std_logic_vector(23 downto 0);
-        stat_m3    : out std_logic_vector(23 downto 0);
-        stat_rdy   : out std_logic;
-        td_sel     : in std_logic_vector(2 downto 0);
-        frm_sync   : in std_logic;
-        td_out     : out std_logic_vector(63 downto 0);
-        data_sel   : in std_logic;
-        sum_di     : out std_logic_vector(63 downto 0)
-     );
-   end component;    
+    component data_interface  --has input data checking, statistics, test_data generator and data select
+       port(  
+          sum_data   : in std_logic_vector(63 downto 0); --sum data
+          C125       : in std_logic; --clock from timing generator
+          Grs        : in std_logic;
+          chan       : in std_logic_vector(5 downto 0);
+          stat_msec  : in std_logic_vector(6 downto 0);
+          prn_run    : in std_logic;
+          stat_start : in std_logic;
+          OneMsec    : in std_logic;
+          ecnt       : out std_logic_vector(7 downto 0);
+          stat_p3    : out std_logic_vector(23 downto 0);
+          stat_p1    : out std_logic_vector(23 downto 0);
+          stat_m1    : out std_logic_vector(23 downto 0);
+          stat_m3    : out std_logic_vector(23 downto 0);
+          stat_rdy   : out std_logic;
+          td_sel     : in std_logic_vector(2 downto 0);
+          frm_sync   : in std_logic;
+          td_out     : out std_logic_vector(63 downto 0);
+          data_sel   : in std_logic;
+          sum_di     : out std_logic_vector(63 downto 0)
+       );
+    end component;    
+    
+    component timing_generator  -- timing generator 
+    port(
+         Grs    		: in std_logic;		-- Grs is the general reset; initialize while = 1; from uP_interface         
+							-- Start counters at the next 1PPS (Grs needs to be zero)
+         						-- This allows external 1PPS to be monitored when not sending frames
+         RunTG    		: in std_logic;         -- from uP_interface
+         
+         C125              	: in std_logic;         -- correlator 125 MHz clock (LVDS input)
+         one_PPS_Maser     	: in std_logic;       	-- 1 PPS from Maser via distributor (LVDS input)
+         one_PPS_GPS       	: in std_logic;         -- 1 PPS from GPS via distributor (LVDS input)
+         TE                	: in std_logic;         -- 48 msec Timing Event from QCC (LVDS input)
+         
+	       						-- taken from bits 29 to 0 for HdrInfo to provide initial value for SFRE at 
+         						-- rising edge of 1PPS after armed by RunTG
+         SFRE_Init         	: in std_logic;
+         
+         FrameSync         	: out std_logic;			-- high one clock at beginning of frame
+         FrameNum          	: out std_logic_vector (23 downto 0); 	-- for VDIF frame number
+         epoch             	: in  std_logic_vector (29 downto 0);  	-- initial value for SFRE
+         SFRE              	: out std_logic_vector (29 downto 0); 	-- for VDIF seconds field
+         TIME0             	: out std_logic; 				-- for c167 1-msec interrupt; drives MGT_TX_p9 (LVDS output)
+         TIME1             	: out std_logic; 				-- for c167 48-msec interrupt; drives MGT_TX_p10 (LVDS output)
+         one_PPS_PIC       	: out std_logic; 				-- for monitoring internal 1 PPS (LVDS output)
+         one_PPS_MASER_OFF 	: out std_logic_vector(27 downto 0); 	-- maser vs local 1PPS offset
+         one_PPS_GPS_OFF   	: out std_logic_vector(27 downto 0); 	-- gps vs local 1PPS offset         
+	       								-- latched high when internal and external TE are not coincident
+         								-- cleared to low by reset_te bit = 1 from uP_interface
+         TE_Err          	: out std_logic;         
+         reset_te        	: in  std_logic;		        -- high resets TE_Err
+         one_PPS_PIC_adv    : out std_logic;
+         nchan              : in std_logic_vector(4 downto 0)     --log base 2 of number of channels
+
+       );
+    end component;        
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
     -- maximum number of channels that can be used. Initially set to 7.
@@ -385,7 +423,18 @@ is
     signal c167_reg0_sig     :std_logic_vector(7 downto 0) := X"00";  --initialization register
     signal c167_reg1_sig     :std_logic_vector(7 downto 0);           --ROACHTP0 select
     signal c167_reg2_sig     :std_logic_vector(7 downto 0);           --ROACHTP1 select
-                                                                      --registers 3 to 11 are spare and not implemented
+    signal c167_reg3_sig     :std_logic_vector(7 downto 0) := X"A0";           --    
+                                                                      --registers 3 to 11 are spare 
+	signal c167_reg4_sig     :std_logic_vector(7 downto 0) := X"00";           --spare register 4															  
+	signal c167_reg5_sig     :std_logic_vector(7 downto 0) := X"00";           --spare register 5
+	signal c167_reg6_sig     :std_logic_vector(7 downto 0) := X"00";           --spare register 6
+	signal c167_reg7_sig     :std_logic_vector(7 downto 0) := X"00";           --spare register 7	 														  
+	signal c167_reg8_sig     :std_logic_vector(7 downto 0) := X"00";           --spare register 8
+	signal c167_reg9_sig     :std_logic_vector(7 downto 0) := X"00";           --spare register 9																	  
+	signal c167_reg10_sig    :std_logic_vector(7 downto 0) := X"00";           --spare register 10
+	signal c167_reg11_sig    :std_logic_vector(7 downto 0) := X"00";           --spare register 11															  
+																	  
+																	  
     type array_reg12 is array(0 to REG12_LGTH-1) of std_logic_vector(7 downto 0);    
     signal QREG12: array_reg12;  --array of 8-bit registers for register 12; see generate statement below                                                                     
     signal c167_reg12_Q_sig     :std_logic_vector(7 downto 0);           --for last register in the chain
@@ -437,6 +486,13 @@ is
     signal c167_reg56_sig     :std_logic_vector(7 downto 0) := X"22";  --for -3 statistics, byte 1
     signal c167_reg57_sig     :std_logic_vector(7 downto 0) := X"23";  --for -3 statistics, byte 2
     signal c167_reg58_sig     :std_logic_vector(7 downto 0) := X"24";  --for -3 statistics, MSB
+
+    signal c167_reg59_sig     :std_logic_vector(7 downto 0) := X"30";  -- for VDIF frame number, 8 least significant bits
+    signal c167_reg60_sig     :std_logic_vector(7 downto 0) := X"31";  -- for VDIF seconds field, 8 least significant bits
+    signal c167_reg61_sig     :std_logic_vector(7 downto 0) := X"32";  -- maser vs local 1PPS offset, 8 least significant bits
+    signal c167_reg62_sig     :std_logic_vector(7 downto 0) := X"33";  -- gps vs local 1PPS offset, 8 least significant bits
+    signal c167_reg63_sig     :std_logic_vector(7 downto 0) := X"34";  -- unused
+
     signal td_sel_sig         :std_logic_vector(2 downto 0) := "000";  --ctrl bits derived from reg 14
     signal data_sel_sig       :std_logic:= '0';                        --ctrl bits derived from reg 14
 
@@ -473,6 +529,22 @@ is
     signal CLKINSTOPPED_sig     :std_logic;  --clock input stopped test point from MMCM
     signal LOCKED_sig           :std_logic;  --clock locked test point from MMCM
     signal RST_sig              :std_logic := '0';  --MMCM reset
+    -- timing generator related signals
+                 
+   signal FrameSync_sig         : std_logic := '0'; 										                      -- high one clock at beginning of frame
+   signal FrameNum_sig          : std_logic_vector (23 downto 0) := x"00_0000"; 	          -- for VDIF frame number
+   signal epoch_sig             : std_logic_vector (29 downto 0) := b"00" & x"000_0000";   -- initial value for SFRE
+   signal SFRE_sig              : std_logic_vector (29 downto 0) := b"00" & x"000_0000"; 	-- for VDIF seconds field
+   signal TIME1_sig             : std_logic := '0'; 											                    -- for c167 48-msec interrupt; drives MGT_TX_p10 (LVDS output)
+   signal GPS_Offset_sig        : std_logic_vector(27 downto 0):= x"000_0000"; 	          -- maser vs local 1PPS offset
+   signal Maser_Offset_sig      : std_logic_vector(27 downto 0):= x"000_0000"; 	          -- gps vs local 1PPS offset
+   signal TE_Err_sig          	: std_logic := '0';
+   signal one_PPS_PIC_adv_sig   : std_logic;
+   signal nchan_sig             : std_logic_vector(4 downto 0);     --log, base 2, of the number of channels
+    
+    
+    
+    
     --temporary counter to generate OneMsec until we integrate the timing_gen module
     signal OneMsecCtr           : std_logic_vector(17 downto 0) := "000000000000000000";
     signal OneMsecRst          : std_logic; 
@@ -582,7 +654,7 @@ begin
    port map(
       sum_data   => sum_data,
       C125       => C125,        
-      Grs        => c167_reg14_sig(2),          --control reg 0, bit 2 from C167          
+      Grs        => c167_reg14_sig(3),          --control reg 0, bit 2 from C167          
       chan       => c167_reg16_sig(5 downto 0), --control reg 2, bits 5 to 0 from C167       
       stat_msec  => c167_reg17_sig(6 downto 0), --control reg 3, bits 6 to 0 from C167       
       prn_run    => c167_reg15_sig(0),          --control reg 1, bit 0 from C167     
@@ -600,6 +672,33 @@ begin
       data_sel   => data_sel_sig,
       sum_di     => DATA2_sig 
    );
+   -- timing generator connection
+   timing_generator_0: timing_generator
+   port map(
+
+          Grs                => c167_reg14_sig(03), -- ok (1=> reset)       IN
+          RunTG              => c167_reg14_sig(4),  -- ok                   IN
+          C125               => C125,               -- ok                   IN
+          one_PPS_Maser      => PPS_Maser_sig,      -- ok                   IN
+          One_PPS_GPS        => PPS_GPS_sig,        -- ok                   IN
+          TE                 => TE_sig,             -- ok                   IN
+          SFRE_Init          => '0',                -- hard coded           IN
+          FrameSync          => FrameSync_sig,      -- needs to be added    OUT
+          FrameNum           => FrameNum_sig,       -- needs to be added    OUT
+          epoch              => epoch_sig,          -- needs to be added    IN
+          SFRE               => SFRE_sig,           -- needs to be added    OUT
+          TIME0              => TIME0_sig,          -- ok                   OUT
+          TIME1              => TIME1_sig,          -- needs to be added    OUT
+          one_PPS_PIC        => PPS_PIC_sig,        -- ok                   OUT
+          one_PPS_Maser_OFF  => Maser_Offset_sig,   -- needs to be added    OUT
+          one_PPS_GPS_OFF    => GPS_Offset_sig,     -- needs to be added    OUT
+          TE_Err             => c167_reg3_sig(0),   -- needs to be added    OUT
+          reset_TE           => c167_reg0_sig(1),   -- ok                   IN      
+          one_PPS_PIC_adv    => one_PPS_PIC_adv_sig,
+          nchan              => nchan_sig
+   );
+   
+   
       
     -- Output for DAC data; single ended so don't need to specify buffers here 
     --connect signals to ports
@@ -791,7 +890,7 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
   --connect misc signals
   DONE           <= DONE_sig;          
   DLL            <= DLL_sig;  
-  PPS_PIC_sig <= test_ctr(0);
+--  PPS_PIC_sig <= test_ctr(0);
 
   -- C167 connections
   CD_T <=  NOT RnW;
@@ -840,7 +939,31 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
    c167_reg53_sig    <= stat_p1_sig(23 downto 16);
    c167_reg55_sig    <= stat_p3_sig(7  downto  0);
    c167_reg56_sig    <= stat_p3_sig(15 downto  8);
-   c167_reg57_sig    <= stat_p3_sig(23 downto 16);   
+   c167_reg57_sig    <= stat_p3_sig(23 downto 16);
+   --C167 header mapping
+   nchan_sig         <= QREG12(20)(4 downto 0);      
+   epoch_sig <= QREG12(28)(5 downto 0) & QREG12(29) & QREG12(30) & QREG12(31);  
+
+   --C167 timing generator mapping
+   c167_reg59_sig <= FrameNum_sig(7 downto 0);
+   c167_reg60_sig <= SFRE_sig(7 downto 0);
+   c167_reg61_sig <= Maser_Offset_sig(7 downto 0);
+   c167_reg62_sig <= GPS_Offset_sig(7 downto 0);
+
+
+-- time difference
+   c167_reg23_sig <= Maser_Offset_sig(7 downto 0);
+   c167_reg24_sig <= Maser_Offset_sig(15 downto 8); 
+   c167_reg25_sig <= Maser_Offset_sig(23 downto 16);
+   c167_reg26_sig <= "0000" & Maser_Offset_sig(27 downto 24);
+
+   c167_reg27_sig <= GPS_Offset_sig(7 downto 0);
+   c167_reg28_sig <= GPS_Offset_sig(15 downto 8); 
+   c167_reg29_sig <= GPS_Offset_sig(23 downto 16);
+   c167_reg30_sig <= "0000" & GPS_Offset_sig(27 downto 24);
+
+  TIME0 <= TIME0_sig; --1ms
+  TIME1 <= TIME1_sig; --48ms
 
 
   -- EPB register access process
@@ -878,202 +1001,97 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
           
           xferAck_sig <= '1';
 
-          if (OPB_RNW = '0') then
+          if (OPB_RNW = '0' and C167_WE_sig='1') then				-- write 
 
             case (DeviceAddr(7 downto 2)) is
 
-            when "000000" => SyncWord <= DeviceDataIn;       --0x000
---            when x"000" => SyncWord(15 downto 0) <= DeviceDataIn;       --0x000
---            when x"001" => SyncWord(31 downto 16) <= DeviceDataIn;      --0x002
---            when x"002" => RefEpoch <= DeviceDataIn(7 downto 0);        --0x004
---            when x"003" => Legacy <= DeviceDataIn(0);                   --0x006
---            when x"004" => StationID <= DeviceDataIn;                   --0x008
---            when x"005" => DBEnum <= DeviceDataIn(3 downto 0);          --0x00A
---            when x"006" => TestMode <= DeviceDataIn(0);                 --0x00C
---            when x"00A" => TimeSlot1On(15 downto 0) <= DeviceDataIn;    --0x014
---            when x"00B" => TimeSlot1On(31 downto 16) <= DeviceDataIn;   --0x016
---            when x"00C" => TimeSlot1Off(15 downto 0) <= DeviceDataIn;   --0x018
---            when x"00D" => TimeSlot1Off(31 downto 16) <= DeviceDataIn;  --0x01A
---            when x"00E" => TimeAlign <= DeviceDataIn;                   --0x01C
---            when x"00F" => selInput <= DeviceDataIn(3 downto 0);        --0x01E
+            when "000000" => SyncWord <= DeviceDataIn;       				   --0x000
+            --when "000001" => c167_reg0_sig  <= DeviceDataIn(7 downto 0);       --0x001
+            --when "000010" => c167_reg1_sig  <= DeviceDataIn(7 downto 0);       --0x002
+            --when "000011" => c167_reg2_sig  <= DeviceDataIn(7 downto 0);       --0x003
+            --when "000100" => c167_reg3_sig  <= DeviceDataIn(7 downto 0);       --0x004			
+            --when "000101" => c167_reg4_sig  <= DeviceDataIn(7 downto 0);       --0x005
+            --when "000110" => c167_reg5_sig  <= DeviceDataIn(7 downto 0);       --0x006
+            --when "000111" => c167_reg6_sig  <= DeviceDataIn(7 downto 0);       --0x007
+            --when "001000" => c167_reg7_sig  <= DeviceDataIn(7 downto 0);       --0x008			
+            --when "001001" => c167_reg8_sig  <= DeviceDataIn(7 downto 0);       --0x009
+            --when "001010" => c167_reg9_sig  <= DeviceDataIn(7 downto 0);       --0x00A
+            --when "001011" => c167_reg10_sig <= DeviceDataIn(7 downto 0);       --0x00B
+            --when "001100" => c167_reg11_sig <= DeviceDataIn(7 downto 0);       --0x00C			
+            --when "001101" => c167_reg12_Q_sig <= DeviceDataIn(7 downto 0);       --0x00D
+            --when "001110" => c167_reg13_sig <= DeviceDataIn(7 downto 0);       --0x00E
+            --when "001111" => c167_reg14_sig <= DeviceDataIn(7 downto 0);       --0x00F
+            --when "010000" => c167_reg15_sig <= DeviceDataIn(7 downto 0);       --0x010
+            --when "010001" => c167_reg16_sig <= DeviceDataIn(7 downto 0);       --0x011
+            --when "010010" => c167_reg17_sig <= DeviceDataIn(7 downto 0);       --0x012
+            --when "010011" => c167_reg18_sig <= DeviceDataIn(7 downto 0);       --0x013
+            --when "010100" => c167_reg19_sig <= DeviceDataIn(7 downto 0);       --0x014			
+            --when "010101" => c167_reg20_sig <= DeviceDataIn(7 downto 0);       --0x015
+            --when "010110" => c167_reg21_sig <= DeviceDataIn(7 downto 0);       --0x016
+            --when "010111" => c167_reg22_sig <= DeviceDataIn(7 downto 0);       --0x017
+            --when "011000" => c167_reg23_sig <= DeviceDataIn(7 downto 0);       --0x018			
+            --when "011001" => c167_reg24_sig <= DeviceDataIn(7 downto 0);       --0x019
+            --when "011010" => c167_reg25_sig <= DeviceDataIn(7 downto 0);       --0x01A
+            --when "011011" => c167_reg26_sig <= DeviceDataIn(7 downto 0);       --0x01B
+            --when "011100" => c167_reg27_sig <= DeviceDataIn(7 downto 0);       --0x01C			
+            --when "011101" => c167_reg28_sig <= DeviceDataIn(7 downto 0);       --0x01D
+            --when "011110" => c167_reg29_sig <= DeviceDataIn(7 downto 0);       --0x01E
+            --when "011111" => c167_reg30_sig <= DeviceDataIn(7 downto 0);       --0x01F
+            --when "100000" => c167_reg31_sig <= DeviceDataIn(7 downto 0);       --0x020
+            --when "100001" => c167_reg32_sig <= DeviceDataIn(7 downto 0);       --0x021
+            --when "100010" => c167_reg33_sig <= DeviceDataIn(7 downto 0);       --0x022
+            --when "100011" => c167_reg34_sig <= DeviceDataIn(7 downto 0);       --0x023
+            --when "100100" => c167_reg35_sig <= DeviceDataIn(7 downto 0);       --0x024			
+            --when "100101" => c167_reg36_sig <= DeviceDataIn(7 downto 0);       --0x025
+            --when "100110" => c167_reg37_sig <= DeviceDataIn(7 downto 0);       --0x026
+            --when "100111" => c167_reg38_sig <= DeviceDataIn(7 downto 0);       --0x027
+            --when "101000" => c167_reg39_sig <= DeviceDataIn(7 downto 0);       --0x028			
+            --when "101001" => c167_reg40_sig <= DeviceDataIn(7 downto 0);       --0x029
+            --when "101010" => c167_reg41_sig <= DeviceDataIn(7 downto 0);       --0x02A
+            --when "101011" => c167_reg42_sig <= DeviceDataIn(7 downto 0);       --0x02B
+            --when "101100" => c167_reg43_sig <= DeviceDataIn(7 downto 0);       --0x02C			
+            --when "101101" => c167_reg44_sig <= DeviceDataIn(7 downto 0);       --0x02D
+            --when "101110" => c167_reg45_sig <= DeviceDataIn(7 downto 0);       --0x02E
+            --when "101111" => c167_reg46_sig <= DeviceDataIn(7 downto 0);       --0x02F
+            --when "110000" => c167_reg47_sig <= DeviceDataIn(7 downto 0);       --0x030
+            --when "110001" => c167_reg48_sig <= DeviceDataIn(7 downto 0);       --0x031
+            --when "110010" => c167_reg49_sig <= DeviceDataIn(7 downto 0);       --0x032
+            --when "110011" => c167_reg50_sig <= DeviceDataIn(7 downto 0);       --0x033
+            --when "110100" => c167_reg51_sig <= DeviceDataIn(7 downto 0);       --0x034			
+            --when "110101" => c167_reg52_sig <= DeviceDataIn(7 downto 0);       --0x035
+            --when "110110" => c167_reg53_sig <= DeviceDataIn(7 downto 0);       --0x036
+            --when "110111" => c167_reg54_sig <= DeviceDataIn(7 downto 0);       --0x037
+            --when "111000" => c167_reg55_sig <= DeviceDataIn(7 downto 0);       --0x038			
+            --when "111001" => c167_reg56_sig <= DeviceDataIn(7 downto 0);       --0x039
+            --when "111010" => c167_reg57_sig <= DeviceDataIn(7 downto 0);       --0x03A
+            --when "111011" => c167_reg58_sig <= DeviceDataIn(7 downto 0);       --0x03B
+            --when "111100" => c167_reg59_sig <= DeviceDataIn(7 downto 0);       --0x03C			
+            --when "111101" => c167_reg60_sig <= DeviceDataIn(7 downto 0);       --0x03D
+            --when "111110" => c167_reg61_sig <= DeviceDataIn(7 downto 0);       --0x03E
+            --when "111111" => c167_reg62_sig <= DeviceDataIn(7 downto 0);       --0x03F
 
---            when x"010" => log2numchan <= DeviceDataIn(4 downto 0);     --0x020
-
---            when x"080" => LOIFftwA(0)(15 downto  0) <= DeviceDataIn;   --0x100
---            when x"081" => LOIFftwA(0)(31 downto 16) <= DeviceDataIn;   --0x102
---            when x"082" => LOIFftwA(1)(15 downto  0) <= DeviceDataIn;   --0x104
---            when x"083" => LOIFftwA(1)(31 downto 16) <= DeviceDataIn;   --0x106
---            when x"084" => LOIFftwA(2)(15 downto  0) <= DeviceDataIn;   --0x108
---            when x"085" => LOIFftwA(2)(31 downto 16) <= DeviceDataIn;   --0x10A
---            when x"086" => LOIFftwA(3)(15 downto  0) <= DeviceDataIn;   --0x10C
---            when x"087" => LOIFftwA(3)(31 downto 16) <= DeviceDataIn;   --0x10E
---            when x"088" => LOIFftwA(4)(15 downto  0) <= DeviceDataIn;   --0x110
---            when x"089" => LOIFftwA(4)(31 downto 16) <= DeviceDataIn;   --0x112
---            when x"08A" => LOIFftwA(5)(15 downto  0) <= DeviceDataIn;   --0x114
---            when x"08B" => LOIFftwA(5)(31 downto 16) <= DeviceDataIn;   --0x116
---            when x"08C" => LOIFftwA(6)(15 downto  0) <= DeviceDataIn;   --0x118
---            when x"08D" => LOIFftwA(6)(31 downto 16) <= DeviceDataIn;   --0x11A
---            when x"08E" => LOIFftwA(7)(15 downto  0) <= DeviceDataIn;   --0x11C
---            when x"08F" => LOIFftwA(7)(31 downto 16) <= DeviceDataIn;   --0x11E
-
---            when x"090" => SampleRateA(0)(15 downto 0) <= DeviceDataIn; --0x120
---            when x"091" => SampleRateA(0)(23 downto 16) <=
---                                            DeviceDataIn(7 downto 0);   --0x122
---            when x"092" => SampleRateA(1)(15 downto 0) <= DeviceDataIn; --0x124
---            when x"093" => SampleRateA(1)(23 downto 16) <=
---                                            DeviceDataIn(7 downto 0);   --0x126
---            when x"094" => SampleRateA(2)(15 downto 0) <= DeviceDataIn; --0x128
---            when x"095" => SampleRateA(2)(23 downto 16) <=
---                                            DeviceDataIn(7 downto 0);   --0x12A
---            when x"096" => SampleRateA(3)(15 downto 0) <= DeviceDataIn; --0x12C
---            when x"097" => SampleRateA(3)(23 downto 16) <=
---                                            DeviceDataIn(7 downto 0);   --0x12E
---            when x"098" => SampleRateA(4)(15 downto 0) <= DeviceDataIn; --0x130
---            when x"099" => SampleRateA(4)(23 downto 16) <=
---                                            DeviceDataIn(7 downto 0);   --0x132
---            when x"09A" => SampleRateA(5)(15 downto 0) <= DeviceDataIn; --0x134
---            when x"09B" => SampleRateA(5)(23 downto 16) <=
---                                            DeviceDataIn(7 downto 0);   --0x136
---            when x"09C" => SampleRateA(6)(15 downto 0) <= DeviceDataIn; --0x138
---            when x"09D" => SampleRateA(6)(23 downto 16) <=
---                                            DeviceDataIn(7 downto 0);   --0x13A
---            when x"09E" => SampleRateA(7)(15 downto 0) <= DeviceDataIn; --0x13C
---            when x"09F" => SampleRateA(7)(23 downto 16) <=
-  --                                          DeviceDataIn(7 downto 0);   --0x13E
-
---            when x"0A0" => Bits_SampA(0) <= DeviceDataIn(4 downto 0);
---                           Bits_SampA(1) <= DeviceDataIn(12 downto 8);  --0x140
---            when x"0A1" => Bits_SampA(2) <= DeviceDataIn(4 downto 0);
---                           Bits_SampA(3) <= DeviceDataIn(12 downto 8);  --0x142
---            when x"0A2" => Bits_SampA(4) <= DeviceDataIn(4 downto 0);
---                           Bits_SampA(5) <= DeviceDataIn(12 downto 8);  --0x144
---            when x"0A3" => Bits_SampA(6) <= DeviceDataIn(4 downto 0);
---                           Bits_SampA(7) <= DeviceDataIn(12 downto 8);  --0x146
---            when x"0A4" => IFnumA(3) <= DeviceDataIn(15 downto 12);
---                           IFnumA(2) <= DeviceDataIn(11 downto 8);
---                           IFnumA(1) <= DeviceDataIn(7 downto 4);
---                           IFnumA(0) <= DeviceDataIn(3 downto 0);       --0x148
---            when x"0A5" => IFnumA(7) <= DeviceDataIn(15 downto 12);
---                           IFnumA(6) <= DeviceDataIn(11 downto 8);
---                           IFnumA(5) <= DeviceDataIn(7 downto 4);
---                           IFnumA(4) <= DeviceDataIn(3 downto 0);       --0x14A
---            when x"0A6" => SubBandA(3) <= DeviceDataIn(15 downto 12);
---                           SubBandA(2) <= DeviceDataIn(11 downto 8);
---                           SubBandA(1) <= DeviceDataIn(7 downto 4);
---                           SubBandA(0) <= DeviceDataIn(3 downto 0);     --0x14C
---            when x"0A7" => SubBandA(7) <= DeviceDataIn(15 downto 12);
---                           SubBandA(6) <= DeviceDataIn(11 downto 8);
---                           SubBandA(5) <= DeviceDataIn(7 downto 4);
---                           SubBandA(4) <= DeviceDataIn(3 downto 0);     --0x14E
---
---            when x"100" => ComplexFlags <= DeviceDataIn(7 downto 0);    --0x200
---            when x"101" => ESideBand    <= DeviceDataIn(7 downto 0);    --0x202
---
---            when x"105" => EpochSecSet(15 downto 0) <= DeviceDataIn;   --0x210
---            when x"106" => EpochSecSet(29 downto 16) <=
---                                            DeviceDataIn(13 downto 0);  --0x212
               when others => null;
             end case;
             
-          else
+          else									-- read
  
             case (DeviceAddr(7 downto 2)) is
-            when "000000" => DeviceDataOut <= SyncWord;      --0x0000
-            when "000001" => DeviceDataOut <= x"000001" & c167_reg0_sig;      --register 0
-            when "000010" => DeviceDataOut <= x"000002" & c167_reg1_sig;      --register 1
-            when "000011" => DeviceDataOut <= x"000003" & c167_reg2_sig;      --register 2
-            when "000100" => DeviceDataOut <= x"00000C" & c167_reg12_Q_sig;    --register 12
-            when "000101" => DeviceDataOut <= x"00000D" & c167_reg13_sig;      --register 13            
-            when "000110" => DeviceDataOut <= x"00000E" & c167_reg14_sig;      --register 14
-            when "000111" => DeviceDataOut <= x"00000F" & c167_reg15_sig;      --register 15
-            when "001000" => DeviceDataOut <= x"000010" & c167_reg16_sig;      --register 16
-            when "001001" => DeviceDataOut <= x"000011" & c167_reg17_sig;      --register 17
-            when "001010" => DeviceDataOut <= x"000012" & c167_reg18_sig;      --register 18
-            when "001011" => DeviceDataOut <= x"000013" & c167_reg19_sig;      --register 19
-            when "001100" => DeviceDataOut <= x"000014" & c167_reg20_sig;      --register 20
-            when "001101" => DeviceDataOut <= x"000015" & c167_reg21_sig;      --register 21
-            when "001110" => DeviceDataOut <= x"000016" & c167_reg22_sig;      --register 22                        
-            when "001111" => DeviceDataOut <= x"000016" & c167_reg23_sig;      --register 23
-            when "010000" => DeviceDataOut <= x"000016" & c167_reg24_sig;      --register 24
-            when "010001" => DeviceDataOut <= x"000016" & c167_reg25_sig;      --register 25
-            when "010010" => DeviceDataOut <= x"000016" & c167_reg26_sig;      --register 26
-            when "010011" => DeviceDataOut <= x"000016" & c167_reg27_sig;      --register 27
-            when "010100" => DeviceDataOut <= x"000016" & c167_reg28_sig;      --register 28
-            when "010101" => DeviceDataOut <= x"000016" & c167_reg29_sig;      --register 29
-            when "010110" => DeviceDataOut <= x"000016" & c167_reg30_sig;      --register 30
-            when "010111" => DeviceDataOut <= x"000016" & c167_reg31_sig;      --register 31
-            when "011000" => DeviceDataOut <= x"000016" & c167_reg32_sig;      --register 32
-            when "011001" => DeviceDataOut <= x"000016" & c167_reg33_sig;      --register 33
-            when "011010" => DeviceDataOut <= x"000016" & c167_reg34_sig;      --register 34
-            
-            --entires below are from VLBA interface and should probably be deleted at some point
---            when x"000" => DeviceDataOut <= SyncWord(15 downto 0);      --0x0000
---            when x"001" => DeviceDataOut <= SyncWord(31 downto 16);     --0x0002
---            when x"002" => DeviceDataOut <= x"00" & RefEpoch;           --0x0004
---            when x"003" => DeviceDataOut <= x"000" & "000" & Legacy;    --0x0006
---            when x"004" => DeviceDataOut <= TimeSlot1Off(31 downto 16); --0x001A
---            when x"00E" => DeviceDataOut <= TimeAlign;                  --0x001C
---            when x"00F" => DeviceDataOut <= prog_full & x"0" & selInput;--0x001E
-
---            when x"010" => DeviceDataOut <= x"00"&"000"&log2numchan;    --0x0020
-
-            -- fill in the individual channel header blocks
---            when x"080" => DeviceDataOut <= LOIFftwA(0)(15 downto  0);  --0x0100
---            when x"081" => DeviceDataOut <= LOIFftwA(0)(31 downto 16);  --0x0102
---            when x"082" => DeviceDataOut <= LOIFftwA(1)(15 downto  0);  --0x0104
---            when x"083" => DeviceDataOut <= LOIFftwA(1)(31 downto 16);  --0x0106
---            when x"084" => DeviceDataOut <= LOIFftwA(2)(15 downto  0);  --0x0108
---            when x"085" => DeviceDataOut <= LOIFftwA(2)(31 downto 16);  --0x010A
---            when x"086" => DeviceDataOut <= LOIFftwA(3)(15 downto  0);  --0x010C
---            when x"087" => DeviceDataOut <= LOIFftwA(3)(31 downto 16);  --0x010E
---            when x"088" => DeviceDataOut <= LOIFftwA(4)(15 downto  0);  --0x0110
---            when x"089" => DeviceDataOut <= LOIFftwA(4)(31 downto 16);  --0x0112
---            when x"08A" => DeviceDataOut <= LOIFftwA(5)(15 downto  0);  --0x0114
---            when x"08B" => DeviceDataOut <= LOIFftwA(5)(31 downto 16);  --0x0116
---            when x"08C" => DeviceDataOut <= LOIFftwA(6)(15 downto  0);  --0x0118
---            when x"08D" => DeviceDataOut <= LOIFftwA(6)(31 downto 16);  --0x011A
---            when x"08E" => DeviceDataOut <= LOIFftwA(7)(15 downto  0);  --0x011C
---            when x"08F" => DeviceDataOut <= LOIFftwA(7)(31 downto 16);  --0x011E
-
---            when x"090" => DeviceDataOut <=          SampleRateA(0)(15 downto 0);  --0x0120
---            when x"091" => DeviceDataOut <= x"00" & SampleRateA(0)(23 downto 16);  --0x0122
---            when x"092" => DeviceDataOut <=          SampleRateA(1)(15 downto 0);  --0x0124
---            when x"093" => DeviceDataOut <= x"00" & SampleRateA(1)(23 downto 16);  --0x0126
---            when x"094" => DeviceDataOut <=          SampleRateA(2)(15 downto 0);  --0x0128
---            when x"095" => DeviceDataOut <= x"00" & SampleRateA(2)(23 downto 16);  --0x012A
---            when x"096" => DeviceDataOut <=          SampleRateA(3)(15 downto 0);  --0x012C
---            when x"097" => DeviceDataOut <= x"00" & SampleRateA(3)(23 downto 16);  --0x012E
---            when x"098" => DeviceDataOut <=          SampleRateA(4)(15 downto 0);  --0x0130
---            when x"099" => DeviceDataOut <= x"00" & SampleRateA(4)(23 downto 16);  --0x0132
---            when x"09A" => DeviceDataOut <=          SampleRateA(5)(15 downto 0);  --0x0134
---            when x"09B" => DeviceDataOut <= x"00" & SampleRateA(5)(23 downto 16);  --0x0136
---            when x"09C" => DeviceDataOut <=          SampleRateA(6)(15 downto 0);  --0x0138
---            when x"09D" => DeviceDataOut <= x"00" & SampleRateA(6)(23 downto 16);  --0x013A
---            when x"09E" => DeviceDataOut <=          SampleRateA(7)(15 downto 0);  --0x013C
---            when x"09F" => DeviceDataOut <= x"00" & SampleRateA(7)(23 downto 16);  --0x013E
-
---            when x"0A0" => DeviceDataOut <= "000" & Bits_SampA(1) &
---                                            "000" & Bits_SampA(0);  --0x0140
---            when x"0A1" => DeviceDataOut <= "000" & Bits_SampA(3) &
---                                            "000" & Bits_SampA(2);  --0x0142
---            when x"0A2" => DeviceDataOut <= "000" & Bits_SampA(5) &
---                                            "000" & Bits_SampA(4);  --0x0144
---            when x"0A3" => DeviceDataOut <= "000" & Bits_SampA(7) &
---                                            "000" & Bits_SampA(6);  --0x0146
---            when x"0A4" => DeviceDataOut <= IFnumA(3) & IFnumA(2) &
---                                            IFnumA(1) & IFnumA(0);  --0x0148
---            when x"0A5" => DeviceDataOut <= IFnumA(7) & IFnumA(6) &
---                                            IFnumA(5) & IFnumA(4);  --0x014A
---            when x"0A6" => DeviceDataOut <= SubBandA(3) & SubBandA(2) &
---                                            SubBandA(1) & SubBandA(0);  --0x014C
---            when x"0A7" => DeviceDataOut <= SubBandA(7) & SubBandA(6) &
---                                            SubBandA(5) & SubBandA(4);  --0x014E
-
---            when x"100" => DeviceDataOut <= x"00" & ComplexFlags;   --0x0200
---            when x"101" => DeviceDataOut <= x"00" & ESideBand;      --0x0202
---            when x"105" => DeviceDataOut <= EpochSeconds(15 downto 0);  --0x0210
---            when x"106" => DeviceDataOut <= "00" & EpochSeconds(29 downto 16); --0x0212
-
+            when "000000" => DeviceDataOut <= c167_reg0_sig & c167_reg1_sig & c167_reg2_sig & c167_reg3_sig ;      				--registers 0,1,2,3
+            when "000001" => DeviceDataOut <= c167_reg4_sig & c167_reg5_sig & c167_reg6_sig & c167_reg7_sig ;      				--registers 4,5,6,7
+            when "000010" => DeviceDataOut <= c167_reg8_sig & c167_reg9_sig & c167_reg10_sig & c167_reg11_sig ;      			--registers 8,9,10,11
+            when "000011" => DeviceDataOut <= c167_reg12_Q_sig & c167_reg13_sig & c167_reg14_sig & c167_reg15_sig ;      		--registers 12,13,14,15
+            when "000100" => DeviceDataOut <= c167_reg16_sig & c167_reg17_sig & c167_reg18_sig & c167_reg19_sig ;      			--registers 16,17,18,19
+            when "000101" => DeviceDataOut <= c167_reg20_sig & c167_reg21_sig & c167_reg22_sig & c167_reg23_sig ;      			--registers 20,21,22,23
+            when "000110" => DeviceDataOut <= c167_reg24_sig & c167_reg25_sig & c167_reg26_sig & c167_reg27_sig ;      			--registers 24,25,26,27
+            when "000111" => DeviceDataOut <= c167_reg28_sig & c167_reg29_sig & c167_reg30_sig & c167_reg31_sig ;      			--registers 28,29,30,31
+            when "001000" => DeviceDataOut <= c167_reg32_sig & c167_reg33_sig & c167_reg34_sig & c167_reg35_sig ;      			--registers 32,33,34,35
+            when "001001" => DeviceDataOut <= c167_reg36_sig & c167_reg37_sig & c167_reg38_sig & c167_reg39_sig ;      			--registers 36,37,38,39
+            when "001010" => DeviceDataOut <= c167_reg40_sig & c167_reg41_sig & c167_reg42_sig & c167_reg43_sig ;      			--registers 40,41,42,43
+            when "001011" => DeviceDataOut <= c167_reg44_sig & c167_reg45_sig & c167_reg46_sig & c167_reg47_sig ;      			--registers 44,45,46,47
+            when "001100" => DeviceDataOut <= c167_reg48_sig & c167_reg49_sig & c167_reg50_sig & c167_reg51_sig ;      			--registers 48,49,50,51			
+            when "001101" => DeviceDataOut <= c167_reg52_sig & c167_reg53_sig & c167_reg54_sig & c167_reg55_sig ;      			--registers 52,53,54,55			
+            when "001110" => DeviceDataOut <= c167_reg56_sig & c167_reg57_sig & c167_reg58_sig & c167_reg59_sig ;      			--registers 56,57,58,59
+            when "001111" => DeviceDataOut <= c167_reg60_sig & c167_reg61_sig & c167_reg62_sig & c167_reg63_sig ;      			--registers 60,61,62,63
             when others => DeviceDataOut <= (others => '0');
             end case;
 
@@ -1493,6 +1511,12 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
         when X"00" => data_to_cpu_sig <= c167_reg0_sig;     
         when X"01" => data_to_cpu_sig <= c167_reg1_sig;     
         when X"02" => data_to_cpu_sig <= c167_reg2_sig;
+        when X"03" => data_to_cpu_sig <= c167_reg3_sig;
+        when X"04" => data_to_cpu_sig <= c167_reg4_sig;
+        when X"05" => data_to_cpu_sig <= SFRE_sig(7 downto 0);
+        when X"06" => data_to_cpu_sig <= SFRE_sig(15 downto 8);
+        when X"07" => data_to_cpu_sig <= SFRE_sig(23 downto 16);
+        when X"08" => data_to_cpu_sig <= "00" & SFRE_sig(29 downto 24);                                
         when X"0C" => data_to_cpu_sig <= c167_reg12_Q_sig;
         when X"0D" => data_to_cpu_sig <= c167_reg13_sig;
         when X"0E" => data_to_cpu_sig <= c167_reg14_sig;
@@ -1540,6 +1564,11 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
         when X"38" => data_to_cpu_sig <= c167_reg56_sig;
         when X"39" => data_to_cpu_sig <= c167_reg57_sig;
         when X"3a" => data_to_cpu_sig <= c167_reg58_sig;
+        when X"3b" => data_to_cpu_sig <= c167_reg59_sig;
+        when X"3c" => data_to_cpu_sig <= c167_reg60_sig;
+        when X"3d" => data_to_cpu_sig <= c167_reg61_sig;
+        when X"3e" => data_to_cpu_sig <= c167_reg62_sig;
+        when X"3f" => data_to_cpu_sig <= c167_reg63_sig;
         
         when others  => data_to_cpu_sig <= (others => '0');  
     end case;       
@@ -1553,6 +1582,7 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
             when X"00" => c167_reg0_sig   <= data_from_cpu_sig;     
             when X"01" => c167_reg1_sig   <= data_from_cpu_sig;   
             when X"02" => c167_reg2_sig   <= data_from_cpu_sig;             
+            when X"04" => c167_reg4_sig   <= data_from_cpu_sig;  
             when X"0D" => c167_reg13_sig  <= data_from_cpu_sig;
             when X"0E" => c167_reg14_sig  <= data_from_cpu_sig;
             when X"0F" => c167_reg15_sig  <= data_from_cpu_sig;
@@ -1632,8 +1662,16 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
             data_in(47) => stat_p3_sig(5),
             data_in(48) => stat_p3_sig(6),
             data_in(49) => stat_p3_sig(7),
-           
-            data_in(63 downto 50) => (others => '0'),
+            data_in(50) => FrameSync_sig,
+            data_in(51) => PPS_GPS_sig,
+            data_in(52) => TE_sig,
+            data_in(53) => FrameSync_sig,
+            data_in(54) => TIME0_sig,
+            data_in(55) => TIME1_sig,
+            data_in(56) => PPS_PIC_sig,
+            data_in(57) => c167_reg14_sig(4),
+            data_in(58) => one_PPS_PIC_adv_sig,
+            data_in(63 downto 59) => (others => '0'),
             data_out => ROACHTP(0)	     
   	     );
 	     
@@ -1683,14 +1721,25 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
             data_in(38) => stat_p1_sig(5),
             data_in(39) => stat_p3_sig(12),
             data_in(40) => stat_p3_sig(13),  --input data to PRG
-            data_in(63 downto 41) => (others => '0'),
+            data_in(41) => PPS_Maser_sig,
+            data_in(42) => PPS_GPS_sig,
+            data_in(43) => TE_sig,
+            data_in(44) => FrameSync_sig,
+            data_in(45) => TIME0_sig,
+            data_in(46) => TIME1_sig,
+            data_in(47) => PPS_PIC_sig,
+            data_in(48) => c167_reg14_sig(4),
+            data_in(49) => '1',
+
+            data_in(63 downto 50) => (others => '0'),
             data_out => ROACHTP(1)            
   	     );  	
   	     
 --ROUTB(3 downto 0) test points  	          
   ROUTB_sig(0) <= test_ctr(7);
 --  ROUTB_sig(1) <= test_ctr_fifo(7);
-  ROUTB_sig(1) <= OneMsecRst;
+--  ROUTB_sig(1) <= OneMsecRst;
+  ROUTB_sig(1) <= PPS_PIC_sig;
   ROUTB_sig(2) <= test_ctr_125(7);
   ROUTB_sig(3) <= C125;  
 	
