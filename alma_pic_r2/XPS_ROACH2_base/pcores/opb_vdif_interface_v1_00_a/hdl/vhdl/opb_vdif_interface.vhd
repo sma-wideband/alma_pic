@@ -69,7 +69,7 @@ entity opb_vdif_interface is
       TE_n            : in std_logic;
       AUXTIME_p       : in std_logic;   --an extram time signal distributed with the TE; not used, but an FPGA interface in included
       AUXTIME_n       : in std_logic;      
-      TIME0           : out std_logic;  --the 48 msec TE signal to the microprocessor interrupt
+      TIME0           : out std_logic;  --the 1 msec TE signal to the microprocessor interrupt
       TIME1           : out std_logic;  --the 48 msec TE signal to the microprocessor interrupt      
       DONE            : out std_logic;  --signal to indicate to microprocessor that FPGA is programmed.  Drive high      
       DLL             : out std_logic;  --signal to indicate that DLL is locked.  Eventually tie to MMCM.  For now tie high      
@@ -81,6 +81,7 @@ entity opb_vdif_interface is
       To10GbeTxData   : out std_logic_vector(63 downto 0);
       To10GbeTxDataValid  : out std_logic;
       To10GbeTxEOF    : out std_logic;
+      To10Gbe_CFIFO   : out std_logic; --10GbE needs fifo clock to be in sync
       
       --DAC ports
       DAC_CLK_p       : out std_logic;
@@ -216,6 +217,7 @@ is
 							-- Start counters at the next 1PPS (Grs needs to be zero)
          						-- This allows external 1PPS to be monitored when not sending frames
          RunTG    		: in std_logic;         -- from uP_interface
+         RunFm    		: in std_logic;         -- from uP_interface
          
          C125              	: in std_logic;         -- correlator 125 MHz clock (LVDS input)
          one_PPS_Maser     	: in std_logic;       	-- 1 PPS from Maser via distributor (LVDS input)
@@ -224,14 +226,14 @@ is
          
 	       						-- taken from bits 29 to 0 for HdrInfo to provide initial value for SFRE at 
          						-- rising edge of 1PPS after armed by RunTG
-         SFRE_Init         	: in std_logic;
+         SFRE_Init         	: in std_logic_vector (29 downto 0);  	-- initial value for SFRE;
          
          FrameSync         	: out std_logic;			-- high one clock at beginning of frame
          FrameNum          	: out std_logic_vector (23 downto 0); 	-- for VDIF frame number
-         epoch             	: in  std_logic_vector (29 downto 0);  	-- initial value for SFRE
+--         epoch             	: in  std_logic_vector (29 downto 0);  	-- initial value for SFRE  get rid of this duplicate!!!!!!!!!
          SFRE              	: out std_logic_vector (29 downto 0); 	-- for VDIF seconds field
-         TIME0             	: out std_logic; 				-- for c167 1-msec interrupt; drives MGT_TX_p9 (LVDS output)
-         TIME1             	: out std_logic; 				-- for c167 48-msec interrupt; drives MGT_TX_p10 (LVDS output)
+         TIME1             	: out std_logic; 				-- for c167 1-msec interrupt; 
+         TIME0             	: out std_logic; 				-- for c167 48-msec interrupt;
          one_PPS_PIC       	: out std_logic; 				-- for monitoring internal 1 PPS (LVDS output)
          one_PPS_MASER_OFF 	: out std_logic_vector(27 downto 0); 	-- maser vs local 1PPS offset
          one_PPS_GPS_OFF   	: out std_logic_vector(27 downto 0); 	-- gps vs local 1PPS offset         
@@ -243,7 +245,56 @@ is
          nchan              : in std_logic_vector(4 downto 0)     --log base 2 of number of channels
 
        );
-    end component;        
+    end component; 
+    
+    component data_formatter
+       port(    
+        sum_di              :  in std_logic_vector(63 downto 0);
+        
+        PSN_init            : in std_logic_vector(63 downto 0);--initial packet ser. num.
+        badFrame            : in std_logic; --bit 31 word 0
+        SFRE                : in std_logic_vector(29 downto 0); --seconds from ref. epoch
+        FrameNum            : in std_logic_vector(23 downto 0); --data frame number
+        refEpoch            : in std_logic_vector(5 downto 0); --reference epoch
+        nchan               : in std_logic_vector(4 downto 0); --n_chan_log2
+        frameLength         : in std_logic_vector(23 downto 0);
+        threadID            : in std_logic_vector(9 downto 0);
+        stationID           : in std_logic_vector(15 downto 0);
+        magicWord           : in std_logic_vector(23 downto 0);
+        statusWord          : in std_logic_vector(31 downto 0);
+
+        CFIFO               : in std_logic;
+        C125                : in std_logic;
+        FrameSync           : in std_logic;  --from timing generator
+        TE_PIC              : in std_logic;  --from timing generator
+        PPS_PIC_Adv         : in std_logic;
+        PPS_PIC             : in std_logic;
+
+        Grs                 : in std_logic;
+        RunFm               : in std_logic; --from uP_interface
+        hdr_sel_C167        : in std_logic_vector(5 downto 0); -- from uP_interface
+
+        To10GbeTxData       : out std_logic_vector(63 downto 0);
+        To10GbeTxDataValid  : out std_logic;
+        To10GbeTxEOF        : out std_logic;
+
+        sum_ch_demux_0      : out std_logic; --LSB of demux data, monitor point
+        hdr_sel_0           : out std_logic; --LSB of hdr_sel, monitor point
+        h_wr_en             : out std_logic; --header write enable, monitor point
+        d_wr_en             : out std_logic; --data write enable, monitor point         
+        FHOF                : out std_logic; --header fifo overflow, monitor point
+        FDOF                : out std_logic; --data fifo overflow, monitor point
+        FDPE                : out std_logic; --data fifo program_empty, monitor point
+        h_rd_en             : out std_logic; --header read enable, monitor point
+        d_rd_en             : out std_logic; --data read enable, monitor point   
+        To10GbeTxData_1     : out std_logic; --Bit 1 of transmit data, monitor point
+
+        PPS_read            : out std_logic; --PPS PIC captured by CFIFO clock
+        
+        coll_out_C167       : out std_logic_vector(7 downto 0) --captured header
+
+       );
+     end component;           
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
     -- maximum number of channels that can be used. Initially set to 7.
@@ -425,14 +476,16 @@ is
     signal c167_reg2_sig     :std_logic_vector(7 downto 0);           --ROACHTP1 select
     signal c167_reg3_sig     :std_logic_vector(7 downto 0) := X"A0";           --    
                                                                       --registers 3 to 11 are spare 
-	signal c167_reg4_sig     :std_logic_vector(7 downto 0) := X"00";           --spare register 4															  
-	signal c167_reg5_sig     :std_logic_vector(7 downto 0) := X"00";           --spare register 5
-	signal c167_reg6_sig     :std_logic_vector(7 downto 0) := X"00";           --spare register 6
-	signal c167_reg7_sig     :std_logic_vector(7 downto 0) := X"00";           --spare register 7	 														  
-	signal c167_reg8_sig     :std_logic_vector(7 downto 0) := X"00";           --spare register 8
-	signal c167_reg9_sig     :std_logic_vector(7 downto 0) := X"00";           --spare register 9																	  
-	signal c167_reg10_sig    :std_logic_vector(7 downto 0) := X"00";           --spare register 10
-	signal c167_reg11_sig    :std_logic_vector(7 downto 0) := X"00";           --spare register 11															  
+	  signal c167_reg4_sig     :std_logic_vector(7 downto 0) := X"00";           --spare register 4															  
+	  signal c167_reg5_sig     :std_logic_vector(7 downto 0) := X"00";           --spare register 5
+	  signal c167_reg6_sig     :std_logic_vector(7 downto 0) := X"00";           --spare register 6
+	  signal c167_reg7_sig     :std_logic_vector(7 downto 0) := X"00";           --spare register 7	 														  
+	  signal c167_reg8_sig     :std_logic_vector(7 downto 0) := X"00";           --spare register 8
+	  signal c167_reg9_sig     :std_logic_vector(7 downto 0) := X"00";           --spare register 9																	  
+	  signal c167_reg10_sig    :std_logic_vector(7 downto 0) := X"00";           --spare register 10
+	  --reg11 is a read/write pair to get status data from the header collator
+	  signal c167_reg11_w_sig  :std_logic_vector(7 downto 0) := X"00";           --for writing to hdr_sel_c167
+	  signal c167_reg11_r_sig  :std_logic_vector(7 downto 0) := X"00";           --for reading from coll_out_c167	  
 																	  
 																	  
     type array_reg12 is array(0 to REG12_LGTH-1) of std_logic_vector(7 downto 0);    
@@ -495,6 +548,11 @@ is
 
     signal td_sel_sig         :std_logic_vector(2 downto 0) := "000";  --ctrl bits derived from reg 14
     signal data_sel_sig       :std_logic:= '0';                        --ctrl bits derived from reg 14
+    
+    signal RunFm_sig          : std_logic;                             --"run formatter" derived from c167_reg14_sig(5)
+    signal RunFm_a1_sig       : std_logic;                             --"run formatter" advanced version for syncing to clock
+    signal RunFm_a2_sig       : std_logic;                             --"run formatter" advanced version for syncing to clock 
+    signal RunFm_Z1_sig       : std_logic;                             --"run formatter" delayed version for detecting rising edge
 
     --c167 bus clock and control signals                                   -                                                                    
     signal C167_CLK_sig      :std_logic;                    --clock for those registers
@@ -529,8 +587,9 @@ is
     signal CLKINSTOPPED_sig     :std_logic;  --clock input stopped test point from MMCM
     signal LOCKED_sig           :std_logic;  --clock locked test point from MMCM
     signal RST_sig              :std_logic := '0';  --MMCM reset
-    -- timing generator related signals
-                 
+    
+    -- timing generator related signals                
+   signal SFRE_init_sig         : std_logic_vector (29 downto 0) := "00" & x"000_0000"; 										                      -- high one clock at beginning of frame
    signal FrameSync_sig         : std_logic := '0'; 										                      -- high one clock at beginning of frame
    signal FrameNum_sig          : std_logic_vector (23 downto 0) := x"00_0000"; 	          -- for VDIF frame number
    signal epoch_sig             : std_logic_vector (29 downto 0) := b"00" & x"000_0000";   -- initial value for SFRE
@@ -539,11 +598,34 @@ is
    signal GPS_Offset_sig        : std_logic_vector(27 downto 0):= x"000_0000"; 	          -- maser vs local 1PPS offset
    signal Maser_Offset_sig      : std_logic_vector(27 downto 0):= x"000_0000"; 	          -- gps vs local 1PPS offset
    signal TE_Err_sig          	: std_logic := '0';
-   signal one_PPS_PIC_adv_sig   : std_logic;
-   signal nchan_sig             : std_logic_vector(4 downto 0);     --log, base 2, of the number of channels
-    
-    
-    
+   signal PPS_PIC_adv_sig   : std_logic;
+   signal nchan_sig             : std_logic_vector(4 downto 0) := "00101";     --log, base 2, of the number of channels
+--   signal nchan_a2_sig          : std_logic_vector(4 downto 0);     --log, base 2, of the number of channels, advanced 2 clocks
+--   signal nchan_a1_sig          : std_logic_vector(4 downto 0);     --log, base 2, of the number of channels, advanced 2 clocks      
+   
+   --data_formatter related signals
+   signal PSN_init_sig          : std_logic_vector (63 downto 0) ;  --initial packet serial number from CCC via C167
+   signal badFrame_sig          : std_logic;                        --badFrame bit from C167
+   signal refEpoch_sig          : std_logic_vector(5 downto 0);     --reference epoch from CCC via C167
+   signal frameLength_sig       : std_logic_vector(23 downto 0);    --data frame length from CCC via C167
+   signal threadID_sig          : std_logic_vector(9 downto 0);     --thread ID from CCC via C167
+   signal stationID_sig         : std_logic_vector(15 downto 0);    --station ID from CCC via C167
+   signal magicWord_sig         : std_logic_vector(23 downto 0);    --magic word from CCC via C167   
+   signal statusWord_sig        : std_logic_vector(31 downto 0);    --status from CCC via C167, C167 itself and FPGA 
+   signal sum_ch_demux_0_sig    : std_logic;                        --lsb of demuxed data, for monitoring
+   signal hrd_sel_0_sig         : std_logic;                        --lsb of demuxed data, for monitoring
+   signal h_wr_en_sig           : std_logic;                        --header write enable signal, for monitoring
+   signal d_wr_en_sig           : std_logic;                        --data write enable signal, for monitoring   
+   signal FHOF_sig              : std_logic;                        --header fifo overflow, for monitoring and status
+   signal FDOF_sig              : std_logic;                        --data fifo overflow, for monitoring and status
+   signal FDPE_sig              : std_logic;                        --data fifo program_empty, for monitoring
+   signal h_rd_en_sig           : std_logic;                        --header read enable signal, for monitoring
+   signal d_rd_en_sig           : std_logic;                        --data read enable signal, for monitoring      
+   signal To10GbeTxData_1_sig   : std_logic;                        --framed data to 10 GbE module, for monitoring
+   signal PPS_read_sig          : std_logic;                        --PIC 1PPS captured by CFIFO clock, for monitoring
+   signal coll_out_C167_sig     : std_logic_vector(7 downto 0);     --8 bits of header captured at TE, for status to C167
+   signal To10GbeTxDataValid_sig  : std_logic;                      --data valid to 10 Gbe module and test point from formatter
+   signal To10GbeTxEOF_sig      : std_logic;                        --end of frame to 10 Gbe module and test point from formatter   
     
     --temporary counter to generate OneMsec until we integrate the timing_gen module
     signal OneMsecCtr           : std_logic_vector(17 downto 0) := "000000000000000000";
@@ -678,27 +760,67 @@ begin
 
           Grs                => c167_reg14_sig(03), -- ok (1=> reset)       IN
           RunTG              => c167_reg14_sig(4),  -- ok                   IN
+          RunFm              => RunFm_sig,          --rising edge (and 1 PPS) used to start formatter and part of timing gen
           C125               => C125,               -- ok                   IN
           one_PPS_Maser      => PPS_Maser_sig,      -- ok                   IN
           One_PPS_GPS        => PPS_GPS_sig,        -- ok                   IN
           TE                 => TE_sig,             -- ok                   IN
-          SFRE_Init          => '0',                -- hard coded           IN
+          SFRE_Init          => SFRE_init_sig,          --    IN
           FrameSync          => FrameSync_sig,      -- needs to be added    OUT
-          FrameNum           => FrameNum_sig,       -- needs to be added    OUT
-          epoch              => epoch_sig,          -- needs to be added    IN
-          SFRE               => SFRE_sig,           -- needs to be added    OUT
-          TIME0              => TIME0_sig,          -- ok                   OUT
-          TIME1              => TIME1_sig,          -- needs to be added    OUT
+          FrameNum           => FrameNum_sig,       -- to data formatter
+--          epoch              => epoch_sig,          -- needs to be added    IN  replaced by SFRE_init
+          SFRE               => SFRE_sig,           -- to data formatter
+          TIME0              => TIME0_sig,          -- 1 msec interrupt to C167
+          TIME1              => TIME1_sig,          -- 48 msec interrupt to C167
           one_PPS_PIC        => PPS_PIC_sig,        -- ok                   OUT
           one_PPS_Maser_OFF  => Maser_Offset_sig,   -- needs to be added    OUT
           one_PPS_GPS_OFF    => GPS_Offset_sig,     -- needs to be added    OUT
           TE_Err             => c167_reg3_sig(0),   -- needs to be added    OUT
           reset_TE           => c167_reg0_sig(1),   -- ok                   IN      
-          one_PPS_PIC_adv    => one_PPS_PIC_adv_sig,
+          one_PPS_PIC_adv    => PPS_PIC_adv_sig,
           nchan              => nchan_sig
    );
    
-   
+   data_formatter_0: data_formatter
+   port map(
+      sum_di        => DATA2_sig,       --connects to data_interface
+      PSN_init      => PSN_init_sig,    --from CCC via C167
+      badFrame      => badFrame_sig,    --determined by logic in C167 based on local and CCC input
+      SFRE          => SFRE_sig,        --from timing generator
+      FrameNum      => FrameNum_sig,    --from timing generator
+      refEpoch      => refEpoch_sig,    --header data from C167
+      nchan         => nchan_sig,       --header data from C167
+      frameLength   => frameLength_sig, --header data from C167
+      threadID      => threadID_sig,    --header data from C167
+      stationID     => stationID_sig,   --header data from C167
+      magicWord     => magicWord_sig,   --header data from C167
+      statusWord    => statusWord_sig,  --header data from various sources
+      CFIFO         => CFIFO,           --output rate clock ~143 MHz
+      C125          => C125,            --correlator clock, 125 MHz
+      FrameSync     => FrameSync_sig,   --frame sync pulse from timing gen 
+      TE_PIC        => TIME1_sig,       --TE pulse from timing gen
+      PPS_PIC_Adv   => PPS_PIC_Adv_sig, --1 PPS from timing gen, 1 clock early
+      PPS_PIC       => PPS_PIC_sig,     --1PPS from timing gen
+      Grs           => c167_reg14_sig(03),  --from C167; a 1 causes reset
+      RunFM         => RunFm_sig,           --from C167;rising edge (and 1 PPS) used to start formatter and part of timing gen 
+      hdr_sel_C167  => c167_reg11_w_sig(5 downto 0),  --used to select which part of header data captured at TE to transmit
+      To10GbeTxData => To10GbeTxData,           --three signals to 10 GbE module
+      To10GbeTxDataValid => To10GbeTxDataValid_sig,
+      To10GbeTxEOF  => To10GbeTxEOF_sig,    
+      sum_ch_demux_0=> sum_ch_demux_0_sig,  --bit 0 of demuxed data, to monitor point
+      hdr_sel_0     => hrd_sel_0_sig,       --bit 0 of header select signal, to monitor point
+      h_wr_en       => h_wr_en_sig,         --header write enable signal, to monitor point
+      d_wr_en       => d_wr_en_sig,         --data write enable signal, to monitor point           
+      FHOF          => FHOF_sig,            --header fifo overflow, to monitor point 
+      FDOF          => FDOF_sig,            --data fifo overflow, to monitor point
+      FDPE          => FDPE_sig,            --data fifo program empty, to monitor point, goes low when one frame's worth of data is available in the fifo.
+      h_rd_en       => h_rd_en_sig,         --header write enable signal, to monitor point
+      d_rd_en       => d_rd_en_sig,         --data write enable signal, to monitor point      
+      To10GbeTxData_1 => To10GbeTxData_1_sig, --Bit 1 of data sent to 10 GbE
+      PPS_read      => PPS_read_sig,        --PIC 1PPS as captured by CFIFO
+      coll_out_C167 => coll_out_C167_sig    --header data captured at TE, for status to C167
+   );
+        
       
     -- Output for DAC data; single ended so don't need to specify buffers here 
     --connect signals to ports
@@ -789,8 +911,8 @@ BANDWIDTH => "LOW", -- Jitter programming ("HIGH","LOW","OPTIMIZED"); must use L
 CLKFBOUT_MULT_F => 8.0, -- Multiply value for all CLKOUT (5.0-64.0); keep as low as possible; 600 <= Fvco <= 1200 MHz
 CLKFBOUT_PHASE => 0.0, -- Phase offset in degrees of CLKFB (0.00-360.00).
 -- CLKIN_PERIOD: Input clock period in ns to ps resolution (i.e. 33.333 is 30 MHz).
-CLKIN1_PERIOD => 8.000,
-CLKIN2_PERIOD => 10.000,
+CLKIN1_PERIOD => 10.000,
+CLKIN2_PERIOD => 8.000,
 CLKOUT0_DIVIDE_F => 7.0, -- Divide amount for CLKOUT0 (1.000-128.000).
 -- CLKOUT0_DUTY_CYCLE - CLKOUT6_DUTY_CYCLE: Duty cycle for CLKOUT outputs (0.01-0.99).
 CLKOUT0_DUTY_CYCLE => 0.5,
@@ -921,50 +1043,68 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
   DAC_IN_B_sig <= test_ctr(7 downto 4); 
   
    --C167-related mappings
-   --because of conflicts between the FPGA requirements and ICD with Computing,
-   --the DOUT bits of C167 control word must be mapped to td_sel and data_sel as follows
-   td_sel_sig(2)     <= ( NOT c167_reg14_sig(7) ) AND ( NOT c167_reg14_sig(6) );
-   td_sel_sig(1)     <=    c167_reg14_sig(7)      AND     c167_reg14_sig(6)    ;
-   td_sel_sig(0)     <=    c167_reg14_sig(6)                                   ;
-   data_sel_sig      <=    c167_reg14_sig(7)      OR      c167_reg14_sig(6)    ;  
-   --C167 statistics mapping 
-   c167_reg43_sig    <= stat_m3_sig(7  downto  0);
-   c167_reg44_sig    <= stat_m3_sig(15 downto  8);
-   c167_reg45_sig    <= stat_m3_sig(23 downto 16);
-   c167_reg47_sig    <= stat_m1_sig(7  downto  0);
-   c167_reg48_sig    <= stat_m1_sig(15 downto  8);
-   c167_reg49_sig    <= stat_m1_sig(23 downto 16);
-   c167_reg51_sig    <= stat_p1_sig(7  downto  0);
-   c167_reg52_sig    <= stat_p1_sig(15 downto  8);
-   c167_reg53_sig    <= stat_p1_sig(23 downto 16);
-   c167_reg55_sig    <= stat_p3_sig(7  downto  0);
-   c167_reg56_sig    <= stat_p3_sig(15 downto  8);
-   c167_reg57_sig    <= stat_p3_sig(23 downto 16);
-   --C167 header mapping
-   nchan_sig         <= QREG12(20)(4 downto 0);      
-   epoch_sig <= QREG12(28)(5 downto 0) & QREG12(29) & QREG12(30) & QREG12(31);  
+       --because of conflicts between the FPGA requirements and ICD with Computing,
+       --the DOUT bits of C167 control word must be mapped to td_sel and data_sel as follows
+       td_sel_sig(2)     <= ( NOT c167_reg14_sig(7) ) AND ( NOT c167_reg14_sig(6) );
+       td_sel_sig(1)     <=    c167_reg14_sig(7)      AND     c167_reg14_sig(6)    ;
+       td_sel_sig(0)     <=    c167_reg14_sig(6)                                   ;
+       data_sel_sig      <=    c167_reg14_sig(7)      OR      c167_reg14_sig(6)    ;  
+       --C167 statistics mapping 
+       c167_reg43_sig    <= stat_m3_sig(7  downto  0);
+       c167_reg44_sig    <= stat_m3_sig(15 downto  8);
+       c167_reg45_sig    <= stat_m3_sig(23 downto 16);
+       c167_reg47_sig    <= stat_m1_sig(7  downto  0);
+       c167_reg48_sig    <= stat_m1_sig(15 downto  8);
+       c167_reg49_sig    <= stat_m1_sig(23 downto 16);
+       c167_reg51_sig    <= stat_p1_sig(7  downto  0);
+       c167_reg52_sig    <= stat_p1_sig(15 downto  8);
+       c167_reg53_sig    <= stat_p1_sig(23 downto 16);
+       c167_reg55_sig    <= stat_p3_sig(7  downto  0);
+       c167_reg56_sig    <= stat_p3_sig(15 downto  8);
+       c167_reg57_sig    <= stat_p3_sig(23 downto 16);
+       --C167 header mapping
+       PSN_init_sig       <= QREG12(32) & QREG12(33) & QREG12(34) & QREG12(35) & QREG12(36) & QREG12(37) & QREG12(38) & QREG12(39);
+       badFrame_sig       <= c167_reg19_sig(0);   --C167 sets this bit based on latest data from CCC and local status info
+       SFRE_init_sig      <= QREG12(28)(5 downto 0) & QREG12(29) & QREG12(30) & QREG12(31);
+       refEpoch_sig       <= QREG12(24)(5 downto 0);
+       --FrameNum_init_sig  <= QREG12(25) & QREG12(26) & QREG12(27); not needed since frame num self-initializes at 1PPS
+       nchan_sig       <= QREG12(20)(4 downto 0); 
+       frameLength_sig    <= QREG12(21) & QREG12(22) & QREG12(23);
+       threadID_sig       <= QREG12(16)(1 downto 0) & QREG12(17);
+       stationID_sig      <= QREG12(18) & QREG12(19);
+       magicWord_sig      <= QREG12(13) & QREG12(14) & QREG12(15);
+       statusWord_sig     <= X"000_0000" & '0' & NOT LOCKED_sig & c167_reg3_sig(0) & badFrame_sig;            
+       c167_reg11_r_sig   <= coll_out_C167_sig;         --captured header data
+--       epoch_sig          <= QREG12(28)(5 downto 0) & QREG12(29) & QREG12(30) & QREG12(31);  get rid of this duplicate!
 
-   --C167 timing generator mapping
-   c167_reg59_sig <= FrameNum_sig(7 downto 0);
-   c167_reg60_sig <= SFRE_sig(7 downto 0);
-   c167_reg61_sig <= Maser_Offset_sig(7 downto 0);
-   c167_reg62_sig <= GPS_Offset_sig(7 downto 0);
 
+       -- time difference
+       c167_reg23_sig <= Maser_Offset_sig(7 downto 0);
+       c167_reg24_sig <= Maser_Offset_sig(15 downto 8); 
+       c167_reg25_sig <= Maser_Offset_sig(23 downto 16);
+       c167_reg26_sig <= "0000" & Maser_Offset_sig(27 downto 24);
 
--- time difference
-   c167_reg23_sig <= Maser_Offset_sig(7 downto 0);
-   c167_reg24_sig <= Maser_Offset_sig(15 downto 8); 
-   c167_reg25_sig <= Maser_Offset_sig(23 downto 16);
-   c167_reg26_sig <= "0000" & Maser_Offset_sig(27 downto 24);
+       c167_reg27_sig <= GPS_Offset_sig(7 downto 0);
+       c167_reg28_sig <= GPS_Offset_sig(15 downto 8); 
+       c167_reg29_sig <= GPS_Offset_sig(23 downto 16);
+       c167_reg30_sig <= "0000" & GPS_Offset_sig(27 downto 24);
+           
+       --misc status
+       c167_reg3_sig(1) <= LOCKED_sig;
+       c167_reg59_sig <= FrameNum_sig(7 downto 0);     
+       c167_reg60_sig <= SFRE_sig(7 downto 0);
+       c167_reg61_sig <= Maser_Offset_sig(7 downto 0);
+       c167_reg62_sig <= GPS_Offset_sig(7 downto 0);  
+       RunFm_sig   <= c167_reg14_sig(5);  
 
-   c167_reg27_sig <= GPS_Offset_sig(7 downto 0);
-   c167_reg28_sig <= GPS_Offset_sig(15 downto 8); 
-   c167_reg29_sig <= GPS_Offset_sig(23 downto 16);
-   c167_reg30_sig <= "0000" & GPS_Offset_sig(27 downto 24);
-
-  TIME0 <= TIME0_sig; --1ms
-  TIME1 <= TIME1_sig; --48ms
-
+      --C167 interupt signals
+      TIME0 <= TIME0_sig; --48 ms
+      TIME1 <= TIME1_sig; --1 ms
+      
+  --signals to 10 GbE module
+  To10GbeTxDataValid  <= To10GbeTxDataValid_sig;
+  To10GbeTxEOF        <= To10GbeTxEOF_sig; 
+  To10Gbe_CFIFO       <= CFIFO;
 
   -- EPB register access process
     RegisterAccess : process(OPB_Rst, epb_clk, OPB_select,
@@ -1078,7 +1218,7 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
             case (DeviceAddr(7 downto 2)) is
             when "000000" => DeviceDataOut <= c167_reg0_sig & c167_reg1_sig & c167_reg2_sig & c167_reg3_sig ;      				--registers 0,1,2,3
             when "000001" => DeviceDataOut <= c167_reg4_sig & c167_reg5_sig & c167_reg6_sig & c167_reg7_sig ;      				--registers 4,5,6,7
-            when "000010" => DeviceDataOut <= c167_reg8_sig & c167_reg9_sig & c167_reg10_sig & c167_reg11_sig ;      			--registers 8,9,10,11
+            when "000010" => DeviceDataOut <= c167_reg8_sig & c167_reg9_sig & c167_reg10_sig & c167_reg11_r_sig ;      			--registers 8,9,10,11
             when "000011" => DeviceDataOut <= c167_reg12_Q_sig & c167_reg13_sig & c167_reg14_sig & c167_reg15_sig ;      		--registers 12,13,14,15
             when "000100" => DeviceDataOut <= c167_reg16_sig & c167_reg17_sig & c167_reg18_sig & c167_reg19_sig ;      			--registers 16,17,18,19
             when "000101" => DeviceDataOut <= c167_reg20_sig & c167_reg21_sig & c167_reg22_sig & c167_reg23_sig ;      			--registers 20,21,22,23
@@ -1517,6 +1657,7 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
         when X"06" => data_to_cpu_sig <= SFRE_sig(15 downto 8);
         when X"07" => data_to_cpu_sig <= SFRE_sig(23 downto 16);
         when X"08" => data_to_cpu_sig <= "00" & SFRE_sig(29 downto 24);                                
+        when X"0B" => data_to_cpu_sig <= c167_reg11_r_sig;
         when X"0C" => data_to_cpu_sig <= c167_reg12_Q_sig;
         when X"0D" => data_to_cpu_sig <= c167_reg13_sig;
         when X"0E" => data_to_cpu_sig <= c167_reg14_sig;
@@ -1583,6 +1724,7 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
             when X"01" => c167_reg1_sig   <= data_from_cpu_sig;   
             when X"02" => c167_reg2_sig   <= data_from_cpu_sig;             
             when X"04" => c167_reg4_sig   <= data_from_cpu_sig;  
+            when X"0B" => c167_reg11_w_sig   <= data_from_cpu_sig;
             when X"0D" => c167_reg13_sig  <= data_from_cpu_sig;
             when X"0E" => c167_reg14_sig  <= data_from_cpu_sig;
             when X"0F" => c167_reg15_sig  <= data_from_cpu_sig;
@@ -1604,7 +1746,8 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
      else
        C167_reg12_CE_sig <= '0';
      end if;                                   
-	end process;
+	end process;	
+
 	
 	-------------------------------------------------------------------------------
 --mux64 for ROACHTP0
@@ -1670,7 +1813,7 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
             data_in(55) => TIME1_sig,
             data_in(56) => PPS_PIC_sig,
             data_in(57) => c167_reg14_sig(4),
-            data_in(58) => one_PPS_PIC_adv_sig,
+            data_in(58) => PPS_PIC_adv_sig,           
             data_in(63 downto 59) => (others => '0'),
             data_out => ROACHTP(0)	     
   	     );
@@ -1725,13 +1868,22 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
             data_in(42) => PPS_GPS_sig,
             data_in(43) => TE_sig,
             data_in(44) => FrameSync_sig,
-            data_in(45) => TIME0_sig,
-            data_in(46) => TIME1_sig,
-            data_in(47) => PPS_PIC_sig,
-            data_in(48) => c167_reg14_sig(4),
-            data_in(49) => '1',
-
-            data_in(63 downto 50) => (others => '0'),
+            data_in(45) => TIME0_sig,             --48-msec interrupt to C167, addr 0x2d
+            data_in(46) => TIME1_sig,             --1-msec interrupt to C167, addr 0x2e
+            data_in(47) => PPS_PIC_sig,           --internal 1 PPS, addr 0x2f
+            data_in(48) => c167_reg14_sig(4),     --RunTG control signal, addr 0x30
+            data_in(49) => sum_ch_demux_0_sig,    --demultiplexed data to fifo,LSB, addr 0x31
+            data_in(50) => h_wr_en_sig,           --header write enable, address 0x32 
+            data_in(51) => d_wr_en_sig,           --data write enable, address 0x33
+            data_in(52) => FDOF_sig,              --data fifo overflow, address 0x34
+            data_in(53) => FDPE_sig,              --data fifo program empty, low after 1000 words in memory,address 0x35
+            data_in(54) => h_rd_en_sig,           --header read enable, addr 0x36
+            data_in(55) => d_rd_en_sig,           --data read enable, addr 0x37            
+            data_in(56) => To10GbeTxData_1_sig,   --LSB of data to 10 GbE module,address 0x38
+            data_in(57) => To10GbeTxDataValid_sig,--data valid signal from formatter,address 0x39
+            data_in(58) => To10GbeTxEOF_sig,      --LSB of data to 10 GbE module,address 0x3a            
+            data_in(59) => PPS_read_sig,          --PIC 1PPS as captured by CFIFO,address 0x3b
+            data_in(63 downto 60) => (others => '0'),
             data_out => ROACHTP(1)            
   	     );  	
   	     
