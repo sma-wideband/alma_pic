@@ -20,9 +20,9 @@ entity int_gen is
 		   
 		   TE_pic			: out std_logic;								-- high for one clock
 
-		   TimeZero			: out std_logic; 								-- 	1 msec interrupt for c167 microprocessor
+		   TIME1			: out std_logic; 								-- 	1 msec interrupt for c167 microprocessor
 		   
-		   TimeOne			: out std_logic; 								-- 48 msec interrupt for c167 microprocessor
+		   TIME0			: out std_logic; 								-- 48 msec interrupt for c167 microprocessor
 
 		   TE_err			: out std_logic									-- when = 1 indicates TE error 
 
@@ -31,10 +31,10 @@ end int_gen;
 
 
 architecture comportamental of int_gen is
-constant duty_cycle_TimeZero: integer 	:=  62500; 								-- as the amount of clock cycles where the signal will be high: 50% duty cycle
-constant duty_cycle_TimeOne: integer  	:= 	62500; 							-- as the amount of clock cycles where the signal will be high: 2/3 duty cycle
-constant limit_TimeZero: integer		:= 124999;								-- (Signal period / clock period) -1, (1e-3/8e-9)-1= 124999
-constant limit_TimeOne: integer			:= 5999999;								-- (Signal period / clock period) -1, (48e-3/8e-9)-1= 5999999
+constant duty_cycle_TIME1: integer 	:=  62500; 								-- as the amount of clock cycles where the signal will be high: 50% duty cycle
+constant duty_cycle_TIME0: integer  	:= 	62500; 							-- as the amount of clock cycles where the signal will be high: 2/3 duty cycle
+constant limit_TIME1: integer		:= 124999;								-- (Signal period / clock period) -1, (1e-3/8e-9)-1= 124999
+constant limit_TIME0: integer			:= 5999999;								-- (Signal period / clock period) -1, (48e-3/8e-9)-1= 5999999
 	
 
 signal TE_in_register: 			std_logic;										-- used for detecting the rising edge
@@ -45,21 +45,21 @@ signal TE_rising_edge_delayed:	std_logic;										-- for matching the pipeline
 begin
 
 	oneMsec_generation: process(C125)  is
-		variable counter_TimeZero: integer:= 0 ;
+		variable counter_TIME1: integer:= 0 ;
 				
 		begin
 
 		if C125='1' and C125'event then											-- generates 1msec signal
-			if TE_rising_edge='1' or counter_TimeZero=limit_TimeZero then
-				counter_TimeZero := 0;
+			if TE_rising_edge='1' or counter_TIME1=limit_TIME1 then
+				counter_TIME1 := 0;
 			else 
-				counter_TimeZero := counter_TimeZero + 1;
+				counter_TIME1 := counter_TIME1 + 1;
 			end if;	
 			
-			if counter_TimeZero<duty_cycle_TimeZero then						-- generates the timeZero signal according to the duty cycle specs
-				TimeZero <= '1';
+			if counter_TIME1<duty_cycle_TIME1 then						-- generates the TIME1 signal according to the duty cycle specs
+				TIME1 <= '1';
 			else
-				TimeZero <= '0';
+				TIME1 <= '0';
 			end if;
 				
 		end if;
@@ -67,7 +67,7 @@ begin
 	
 
 	check_te: process(C125) is
-		variable counter_TimeOne: integer:= 0 ;
+		variable counter_TIME0: integer:= 0 ;
 		begin
 		if C125='1' and C125'event then
 
@@ -75,20 +75,20 @@ begin
 			TE_rising_edge_delayed <= TE_rising_edge;
 			TE_rising_edge <= TE_in and not(TE_in_register);					-- check for rising edges in TE_in
 
-			if counter_TimeOne=limit_TimeOne or TE_rising_edge='1' then
-				counter_TimeOne:=0;
+			if counter_TIME0=limit_TIME0 or TE_rising_edge='1' then
+				counter_TIME0:=0;
 				TE_pic <=  '1';
 				internal_TE <= '1';
 			else 
-				counter_TimeOne:= counter_TimeOne + 1;
+				counter_TIME0:= counter_TIME0 + 1;
 				internal_TE <= '0';
 				TE_pic <=  '0';
 			end if;	
 			
-			if counter_TimeOne < duty_cycle_TimeOne then						-- generates the timeOne signal according to the duty cycle specs
-				TimeOne <= '1';
+			if counter_TIME0 < duty_cycle_TIME0 then						-- generates the timeOne signal according to the duty cycle specs
+				TIME0 <= '1';
 			else
-				TimeOne <= '0';
+				TIME0 <= '0';
 			end if;
 			
 			if (TE_rising_edge_delayed xor internal_TE)='1' then				-- check if the external TE signal matches with the one generated internally
