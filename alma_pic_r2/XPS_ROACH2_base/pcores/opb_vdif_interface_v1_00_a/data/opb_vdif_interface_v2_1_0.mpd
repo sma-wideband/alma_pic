@@ -102,6 +102,7 @@ PARAMETER nch = 0, DT = INTEGER
         PORT To10GbeTxData       = "", DIR = O, VEC = [0:63]
         PORT To10GbeTxDataValid  = "", DIR = O
         PORT To10GbeTxEOF        = "", DIR = O
+        PORT To10Gbe_CFIFO       = "", DIR = O
 
 	######################################
 	## Test/debug ports
