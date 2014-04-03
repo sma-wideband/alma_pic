@@ -267,9 +267,7 @@ BEGIN alma_pic_r2
  PORT alma_pic_r2_ten_Gbe_v2_led_rx = alma_pic_r2_ten_Gbe_v2_led_rx
  PORT alma_pic_r2_ten_Gbe_v2_led_tx = alma_pic_r2_ten_Gbe_v2_led_tx
  PORT alma_pic_r2_ten_Gbe_v2_led_up = alma_pic_r2_ten_Gbe_v2_led_up
- PORT alma_pic_r2_ten_Gbe_v2_rx_bad_frame = alma_pic_r2_ten_G
-         port map (
-be_v2_rx_bad_frame
+ PORT alma_pic_r2_ten_Gbe_v2_rx_bad_frame = alma_pic_r2_ten_Gbe_v2_rx_bad_frame
  PORT alma_pic_r2_ten_Gbe_v2_rx_data = alma_pic_r2_ten_Gbe_v2_rx_data
  PORT alma_pic_r2_ten_Gbe_v2_rx_end_of_frame = alma_pic_r2_ten_Gbe_v2_rx_end_of_frame
  PORT alma_pic_r2_ten_Gbe_v2_rx_overrun = alma_pic_r2_ten_Gbe_v2_rx_overrun
