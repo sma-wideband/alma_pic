@@ -29,7 +29,8 @@ end one_pps_pic_gen;
 
 architecture comportamental of one_pps_pic_gen is
 
-constant counter_limit:integer:= 125000000;
+constant counter_limit:integer:= 125000000;   --for synthesis
+--constant counter_limit:integer:= 20;   --for simulation
 
 signal counter    : std_logic_vector(27 downto 0); -- BUS:=X"000_0000";  		--28 bits counter, 125,000,000 = 0x7735940
 signal one_pps    : std_logic := '0';
