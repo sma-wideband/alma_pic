@@ -19,6 +19,7 @@ port(
    -- Start counters at the next 1PPS (Grs needs to be zero)
    -- This allows external 1PPS to be monitored when not sending frames
    RunTG    			: in std_logic;                           -- from uP_interface
+   RunFm    			: in std_logic;                           -- from uP_interface
    
    C125              : in std_logic;                        -- correlator 125 MHz clock (LVDS input)
    one_PPS_Maser     : in std_logic;                        -- 1 PPS from Maser via distributor (LVDS input)
@@ -27,14 +28,14 @@ port(
    
 	 -- taken from bits 29 to 0 for HdrInfo to provide initial value for SFRE at 
    -- rising edge of 1PPS after armed by RunTG
-   SFRE_Init         : in std_logic;
+   SFRE_Init         : in std_logic_vector (29 downto 0);  -- initial value for SFRE;
    
    FrameSync         : out std_logic; 										  -- high one clock at beginning of frame
    FrameNum          : out std_logic_vector (23 downto 0); 	-- for VDIF frame number
-   epoch             : in  std_logic_vector (29 downto 0);  -- initial value for SFRE
+--   epoch             : in  std_logic_vector (29 downto 0);  -- initial value for SFRE       get rid of this duplicate!!!!!!!!!
    SFRE              : out std_logic_vector (29 downto 0); 	-- for VDIF seconds field
-   TIME0             : out std_logic; 											-- for c167 1-msec interrupt; drives MGT_TX_p9 (LVDS output)
-   TIME1             : out std_logic; 											-- for c167 48-msec interrupt; drives MGT_TX_p10 (LVDS output)
+   TIME1             : out std_logic; 											-- for c167 1-msec interrupt; drives MGT_TX_p9 (LVDS output)
+   TIME0             : out std_logic; 											-- for c167 48-msec interrupt; drives MGT_TX_p10 (LVDS output)
    one_PPS_PIC       : out std_logic; 											-- for monitoring internal 1 PPS (LVDS output)
    one_PPS_MASER_OFF : out std_logic_vector(27 downto 0); 	-- maser vs local 1PPS offset
    one_PPS_GPS_OFF   : out std_logic_vector(27 downto 0); 	-- gps vs local 1PPS offset
@@ -60,10 +61,10 @@ end component;
 component sfre_gen
 	port(
      grs              : in  std_logic;                      -- Grs is the general reset.  It holds the logic reset while it is high  
-     runtg            : in  std_logic;                      -- the rising edge of RunTg tells the logic to start at the next 1PPS
+     RunFm            : in  std_logic;                      -- the rising edge of RunTg tells the logic to start at the next 1PPS
      c125             : in  std_logic;                      -- 125 MHz clock		   
      one_pps_pic_adv  : in  std_logic;                      -- internally generated 1PPS
-     epoch            : in  std_logic_vector (29 downto 0);
+     epoch        : in  std_logic_vector (29 downto 0);
      sfre             : out std_logic_vector (29 downto 0)  -- 	for VDIF frame		   
    );
 end component;
@@ -74,8 +75,8 @@ component int_gen
      TE_in      : in std_logic;    -- signal derived from TE_p
      Reset_te   : in std_logic;    -- when = 1, forces TE_err = 0		   
      TE_pic     : out std_logic;   -- high for one clock
-     TimeZero   : out std_logic;   -- 1 msec interrupt for c167 microprocessor		   
-     TimeOne    : out std_logic;   -- 48 msec interrupt for c167 microprocessor
+     TIME1   : out std_logic;   -- 1 msec interrupt for c167 microprocessor		   
+     TIME0    : out std_logic;   -- 48 msec interrupt for c167 microprocessor
      TE_err     : out std_logic    -- when = 1 indicates TE error 
 
    );
@@ -84,7 +85,7 @@ end component;
 component frame_gen
   port(
      Grs              : in std_logic;                       -- Grs is the general reset.  It holds the logic reset while it is high   
-     RunTG            : in std_logic;                       -- The rising edge of Run tells the logic to start at the next 1PPS   
+     RunFm            : in std_logic;                       -- The rising edge of Run tells the logic to start at the next 1PPS   
      nchan            : in std_logic_vector(4 downto 0);    -- nchan has an effect on the frame length
      C125             : in std_logic;                       -- 125 MHz clock
      one_PPS_PIC_Adv  : in std_logic;                       -- From 1PPS_PIC component
@@ -126,17 +127,17 @@ signal dummy                : std_logic_vector(1 downto 0);
 
 begin
 
-	nchan_sig <= nchan;									-- hard wired, 32 IF channels
+	nchan_sig <= nchan;								
 	one_PPS_PIC <= one_pps_pic_sig ;						-- one pps internally generated signal (component one_pps_pic_gen)
 	one_PPS_PIC_adv <= one_pps_pic_adv_sig; 				-- to the test points 	
 	
   sfre_gen_0: sfre_gen
       port map (
 		grs              => Grs,	             -- input, connected to GRS
-		runtg            => RunTG,						-- input, connected to RunTG
+		RunFm            => RunFm,						-- input, connected to RunTG
 		c125             => C125,						-- input, general 125MHz clock
 		one_pps_pic_adv  => one_pps_pic_adv_sig,			-- input, one PPS, internally generated
-		epoch            => epoch,
+		epoch            => SFRE_init,
 		sfre				     => SFRE							-- output, for the VDIF frame
    );	  
 	 
@@ -146,16 +147,16 @@ begin
 			TE_in     => TE,          -- input, connected to the TE, external TE
 			Reset_te  => reset_te,    -- input, connected to the reset_te, forces TE_err = 0
 			TE_pic    => TE_pic_sig,  -- output, derived TE; free-runs or syncs to external TE if available, high for one clock
-			TimeZero  => TIME0,       -- output, 1 msec interrupt for c167 microprocessor, connected to TIME0
-			TimeOne   => TIME1,       -- output, 48 msec interrupt for c167 microprocessor, connected to TIME1
+			TIME1  => TIME1,          -- output, 48 msec interrupt for c167 microprocessor, connected to TIME0
+			TIME0   => TIME0,         -- output, 1 msec interrupt for c167 microprocessor, connected to TIME1
 			TE_err    => TE_Err       -- output,when = 1 indicates TE error, connected to TE_Err
     );
 	
 	frame_gen_0: frame_gen
         port map (
 			Grs              => Grs,                  -- input, connected to GRS
-			RunTG            => RunTG,                -- input, connected to RunTG
-			nchan            => nchan_sig,            -- input, hardwire to nchan_sig which is '010000'
+			RunFm            => RunFm ,                -- input, connected to RunTG
+			nchan            => nchan_sig,            -- input, h
 			C125             => C125,                 -- input, general 125MHz clock
 			ONE_PPS_PIC_Adv  => one_pps_pic_adv_sig,  -- input, from 1PPS_PIC component 
 			FrameNum         => FrameNum,             -- output, std_logic_vector (23 downto 0), for VDIF frame number
