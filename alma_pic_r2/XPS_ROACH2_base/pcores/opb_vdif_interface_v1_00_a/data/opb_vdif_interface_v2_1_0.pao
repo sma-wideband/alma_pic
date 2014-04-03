@@ -7,7 +7,7 @@ lib opb_vdif_interface_v1_00_a VDIF_fifo.vhd vhdl
 lib opb_vdif_interface_v1_00_a vdif_pkg.vhd vhdl
 lib opb_vdif_interface_v1_00_a rdbe_pkg.vhd vhdl
 lib opb_vdif_interface_v1_00_a mux64.vhd vhdl
-lib opb_vdif_interface_v1_00_a fifo_data.vhd vhdl
+#lib opb_vdif_interface_v1_00_a fifo_data.vhd vhdl
 lib opb_vdif_interface_v1_00_a treg8.vhd vhdl
 lib opb_vdif_interface_v1_00_a data_interface.vhd vhdl
 lib opb_vdif_interface_v1_00_a out_data_sel.vhd vhdl
@@ -20,3 +20,11 @@ lib opb_vdif_interface_v1_00_a sfre_gen.vhd vhdl
 lib opb_vdif_interface_v1_00_a int_gen.vhd vhdl
 lib opb_vdif_interface_v1_00_a frame_gen.vhd vhdl
 lib opb_vdif_interface_v1_00_a one_pps_pic_gen.vhd vhdl
+lib opb_vdif_interface_v1_00_a data_formatter.vhd vhdl
+lib opb_vdif_interface_v1_00_a header_collator.vhd vhdl
+lib opb_vdif_interface_v1_00_a channel_demux.vhd vhdl
+lib opb_vdif_interface_v1_00_a header_write_control.vhd vhdl
+lib opb_vdif_interface_v1_00_a data_write_ctrl.vhd vhdl
+lib opb_vdif_interface_v1_00_a fifo_66x2k_behav.vhd vhdl
+lib opb_vdif_interface_v1_00_a read_control.vhd vhdl
+
