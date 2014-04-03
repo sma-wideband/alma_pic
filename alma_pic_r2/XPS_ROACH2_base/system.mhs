@@ -1,3 +1,4 @@
+
 # ##############################################################################
 # Target Board:  ROACH v2.0
 # Family:	     virtex6
@@ -7,19 +8,18 @@
 # Processor:     None
 # System clock frequency: 100.000000 MHz
 # ##############################################################################
-
  PARAMETER VERSION = 2.1.0
 
 
 # Clock Ports
  PORT sys_clk_n = sys_clk_n, DIR = I, SIGIS = CLK, CLK_FREQ = 100000000
  PORT sys_clk_p = sys_clk_p, DIR = I, SIGIS = CLK, CLK_FREQ = 100000000
- #PORT aux_clk_n = aux_clk_n, DIR = I, SIGIS = CLK, CLK_FREQ = 100000000
- #PORT aux_clk_p = aux_clk_p, DIR = I, SIGIS = CLK, CLK_FREQ = 100000000
-PORT aux_clk_n  = aux_clk_n,  DIR = I, SIGIS = CLK, CLK_FREQ = 100000000
-PORT aux_clk_p  = aux_clk_p,  DIR = I, SIGIS = CLK, CLK_FREQ = 100000000
-PORT C125_clk_n  = C125_clk_n,  DIR = I, SIGIS = CLK, CLK_FREQ = 125000000
-PORT C125_clk_p  = C125_clk_p,  DIR = I, SIGIS = CLK, CLK_FREQ = 125000000
+# PORT aux_clk_n = aux_clk_n, DIR = I, SIGIS = CLK, CLK_FREQ = 100000000
+# PORT aux_clk_p = aux_clk_p, DIR = I, SIGIS = CLK, CLK_FREQ = 100000000
+ PORT aux_clk_n = aux_clk_n, DIR = I, SIGIS = CLK, CLK_FREQ = 100000000
+ PORT aux_clk_p = aux_clk_p, DIR = I, SIGIS = CLK, CLK_FREQ = 100000000
+ PORT C125_clk_n = C125_clk_n, DIR = I, SIGIS = CLK, CLK_FREQ = 125000000
+ PORT C125_clk_p = C125_clk_p, DIR = I, SIGIS = CLK, CLK_FREQ = 125000000
 # PORT aux_synci_n = aux_synci_n,   DIR = I, SIGIS = CLK, CLK_FREQ = 200000000
 # PORT aux_synci_p = aux_synci_p,   DIR = I, SIGIS = CLK, CLK_FREQ = 200000000
 # PORT aux_synco_n = aux_synco_n,   DIR = I, SIGIS = CLK, CLK_FREQ = 200000000
@@ -36,73 +36,71 @@ PORT C125_clk_p  = C125_clk_p,  DIR = I, SIGIS = CLK, CLK_FREQ = 125000000
  PORT epb_rdy = epb_rdy, DIR = O
  PORT ppc_irq_n = ppc_irq_n, DIR = O
 # VDIF ports
- PORT vdif_clk_in_p   = vdif_clk_in_p, DIR = I, SIGIS = CLK, CLK_FREQ = 125000000
- PORT vdif_clk_in_n   = vdif_clk_in_n, DIR = I, SIGIS = CLK, CLK_FREQ = 125000000
+# PORT vdif_clk_in_p   = vdif_clk_in_p, DIR = I, SIGIS = CLK, CLK_FREQ = 125000000
+# PORT vdif_clk_in_n   = vdif_clk_in_n, DIR = I, SIGIS = CLK, CLK_FREQ = 125000000
  PORT vdif_PPS_Maser_p = vdif_PPS_Maser_p, DIR = I
  PORT vdif_PPS_Maser_n = vdif_PPS_Maser_n, DIR = I
  PORT vdif_PPS_GPS_p = vdif_PPS_GPD_p, DIR = I
  PORT vdif_PPS_GPS_n = vdif_PPS_GPD_n, DIR = I
- PORT vdif_PPS_PIC_p  = vdif_PPS_PIC_p, DIR = O
- PORT vdif_PPS_PIC_n  = vdif_PPS_PIC_n, DIR = O
- PORT vdif_TE_p       = vdif_TE_p, DIR = I
- PORT vdif_TE_n       = vdif_TE_n, DIR = I
- PORT vdif_AUXTIME_p       = vdif_AUXTIME_p, DIR = I
- PORT vdif_AUXTIME_n       = vdif_AUXTIME_n, DIR = I 
- PORT vdif_TIME0      = vdif_TIME0, DIR = O 
- PORT vdif_TIME1      = vdif_TIME1, DIR = O 
- PORT vdif_DONE       = vdif_DONE, DIR = O 
- PORT vdif_DLL        = vdif_DLL, DIR = O 
+ PORT vdif_PPS_PIC_p = vdif_PPS_PIC_p, DIR = O
+ PORT vdif_PPS_PIC_n = vdif_PPS_PIC_n, DIR = O
+ PORT vdif_TE_p = vdif_TE_p, DIR = I
+ PORT vdif_TE_n = vdif_TE_n, DIR = I
+ PORT vdif_AUXTIME_p = vdif_AUXTIME_p, DIR = I
+ PORT vdif_AUXTIME_n = vdif_AUXTIME_n, DIR = I
+ PORT vdif_TIME0 = vdif_TIME0, DIR = O
+ PORT vdif_TIME1 = vdif_TIME1, DIR = O
+ PORT vdif_DONE = vdif_DONE, DIR = O
+ PORT vdif_DLL = vdif_DLL, DIR = O
  PORT vdif_sum_data_p = vdif_sum_data_p, DIR = I, VEC = [63:0]
  PORT vdif_sum_data_n = vdif_sum_data_n, DIR = I, VEC = [63:0]
- PORT vdif_roachtp    = vdif_roachtp, DIR = O, VEC = [1:0]
- PORT vdif_routb      = vdif_routb,   DIR = O, VEC = [3:0]
- 
+ PORT vdif_roachtp = vdif_roachtp, DIR = O, VEC = [1:0]
+ PORT vdif_routb = vdif_routb, DIR = O, VEC = [3:0]
  PORT vdif_CD = vdif_CD, DIR = IO, VEC = [7:0]
  PORT vdif_CTRL_DATA = vdif_CTRL_DATA, DIR = I
  PORT vdif_RnW = vdif_RnW, DIR = I
  PORT vdif_uCLK0 = vdif_uCLK0, DIR = I
  PORT vdif_DAC_CLK_p = vdif_DAC_CLK_p, DIR = O
  PORT vdif_DAC_CLK_n = vdif_DAC_CLK_n, DIR = O
- PORT vdif_DAC_IN_A  = vdif_DAC_IN_A,  DIR = O, VEC = [3:0]
- PORT vdif_DAC_IN_B  = vdif_DAC_IN_B,  DIR = O, VEC = [3:0] 
+ PORT vdif_DAC_IN_A = vdif_DAC_IN_A, DIR = O, VEC = [3:0]
+ PORT vdif_DAC_IN_B = vdif_DAC_IN_B, DIR = O, VEC = [3:0]
 # PORT vdif_DAC_IN_A0 = vdif_DAC_IN_A0, DIR = O, VEC = [3:0]
+# MGT Ports
+ PORT xaui_refclk_n = xaui_refclk_n, DIR = I, VEC = [2:0]
+ PORT xaui_refclk_p = xaui_refclk_p, DIR = I, VEC = [2:0]
+ PORT mgt_rx_n = mgt_rx_n, DIR = I, VEC = [8*4-1:0]
+ PORT mgt_rx_p = mgt_rx_p, DIR = I, VEC = [8*4-1:0]
+ PORT mgt_tx_n = mgt_tx_n, DIR = O, VEC = [8*4-1:0]
+ PORT mgt_tx_p = mgt_tx_p, DIR = O, VEC = [8*4-1:0]
 
 
- # MGT Ports
-PORT xaui_refclk_n      = xaui_refclk_n, DIR = I, VEC = [2:0]
-PORT xaui_refclk_p      = xaui_refclk_p, DIR = I, VEC = [2:0]
-PORT mgt_rx_n           = mgt_rx_n,  DIR = I, VEC = [8*4-1:0]
-PORT mgt_rx_p           = mgt_rx_p,  DIR = I, VEC = [8*4-1:0]
-PORT mgt_tx_n           = mgt_tx_n,  DIR = O, VEC = [8*4-1:0]
-PORT mgt_tx_p           = mgt_tx_p,  DIR = O, VEC = [8*4-1:0]
 BEGIN xaui_infrastructure
-  PARAMETER INSTANCE = xaui_infrastructure_inst
-  PARAMETER HW_VER = 1.00.a
-  PARAMETER ENABLE0  = 1
-   PARAMETER TX_LANE_STEER0 = 0
-   PARAMETER RX_INVERT0 = 1
-  PORT xaui_refclk_n = xaui_refclk_n
-  PORT xaui_refclk_p = xaui_refclk_p
-  PORT mgt_rx_n    = mgt_rx_n
-  PORT mgt_rx_p    = mgt_rx_p
-  PORT mgt_tx_n    = mgt_tx_n
-  PORT mgt_tx_p    = mgt_tx_p
-  PORT reset       = sys_reset
-  PORT xaui_clk    = xaui_clk
-  BUS_INTERFACE XAUI_SYS_0 = xaui_sys0
-  BUS_INTERFACE PHY_CONF_0 = phy_conf0
+ PARAMETER INSTANCE = xaui_infrastructure_inst
+ PARAMETER HW_VER = 1.00.a
+ PARAMETER ENABLE0 = 1
+ PARAMETER TX_LANE_STEER0 = 0
+ PARAMETER RX_INVERT0 = 1
+ BUS_INTERFACE XAUI_SYS_0 = xaui_sys0
+ BUS_INTERFACE PHY_CONF_0 = phy_conf0
+ PORT xaui_refclk_n = xaui_refclk_n
+ PORT xaui_refclk_p = xaui_refclk_p
+ PORT mgt_rx_n = mgt_rx_n
+ PORT mgt_rx_p = mgt_rx_p
+ PORT mgt_tx_n = mgt_tx_n
+ PORT mgt_tx_p = mgt_tx_p
+ PORT reset = sys_reset
+ PORT xaui_clk = xaui_clk
 END
-
 
 BEGIN roach_infrastructure
  PARAMETER INSTANCE = infrastructure_inst
  PARAMETER HW_VER = 1.00.a
-  PARAMETER CLK_FREQ     = 100
-  PARAMETER CLK_HIGH_LOW = low
-  PARAMETER MULTIPLY     = 8
-  PARAMETER DIVIDE       = 8
-  PARAMETER DIVCLK       = 1
- #PARAMETER CLK_FREQ = 100
+ PARAMETER CLK_FREQ = 100
+ PARAMETER CLK_HIGH_LOW = low
+ PARAMETER MULTIPLY = 8
+ PARAMETER DIVIDE = 8
+ PARAMETER DIVCLK = 1
+# PARAMETER CLK_FREQ = 100
  PORT sys_clk_n = sys_clk_n
  PORT sys_clk_p = sys_clk_p
  PORT aux_clk_n = aux_clk_n
@@ -121,18 +119,18 @@ BEGIN roach_infrastructure
  PORT sys_clk2x90 = sys_clk2x90
  PORT sys_clk2x180 = sys_clk2x180
  PORT sys_clk2x270 = sys_clk2x270
- PORT aux_clk       = aux_clk
- PORT aux_clk90     = aux_clk90
- PORT aux_clk180    = aux_clk180
- PORT aux_clk270    = aux_clk270
- PORT aux_clk2x     = aux_clk2x
- PORT aux_clk2x90   = aux_clk2x90
- PORT aux_clk2x180  = aux_clk2x180
- PORT aux_clk2x270  = aux_clk2x270
+ PORT aux_clk = aux_clk
+ PORT aux_clk90 = aux_clk90
+ PORT aux_clk180 = aux_clk180
+ PORT aux_clk270 = aux_clk270
+ PORT aux_clk2x = aux_clk2x
+ PORT aux_clk2x90 = aux_clk2x90
+ PORT aux_clk2x180 = aux_clk2x180
+ PORT aux_clk2x270 = aux_clk2x270
  PORT epb_clk = epb_clk
  PORT idelay_rst = power_on_rst
  PORT idelay_rdy = idelay_rdy
- PORT op_power_on_rst  = power_on_rst
+ PORT op_power_on_rst = power_on_rst
 END
 
 BEGIN reset_block
@@ -195,8 +193,8 @@ BEGIN sys_block
  PORT soft_reset = soft_reset
  PORT irq_n = ppc_irq_n
  PORT app_irq = 0x0000
- #PORT fab_clk    = sys_clk
-  PORT fab_clk    = sys_clk
+# PORT fab_clk    = sys_clk
+ PORT fab_clk = sys_clk
 END
 
 # ALMA PIC interface
@@ -212,12 +210,12 @@ BEGIN opb_vdif_interface
  PARAMETER nch = 4
  BUS_INTERFACE SOPB = opb0
  PORT OPB_Clk = epb_clk
- #microprocessor interface
+# microprocessor interface
  PORT CD = vdif_CD
  PORT CTRL_DATA = vdif_CTRL_DATA
  PORT RnW = vdif_RnW
  PORT uCLK0 = vdif_uCLK0
-#other
+# other
  PORT clk_in_p = C125_clk_p
  PORT clk_in_n = C125_clk_n
  PORT sum_data_p = vdif_sum_data_p
@@ -229,37 +227,37 @@ BEGIN opb_vdif_interface
  PORT PPS_GPS_n = vdif_PPS_GPD_n
  PORT PPS_PIC_p = vdif_PPS_PIC_p
  PORT PPS_PIC_n = vdif_PPS_PIC_n
- PORT TE_p      = vdif_TE_p
- PORT TE_n      = vdif_TE_n 
+ PORT TE_p = vdif_TE_p
+ PORT TE_n = vdif_TE_n
  PORT AUXTIME_p = vdif_AUXTIME_p
- PORT AUXTIME_n = vdif_AUXTIME_n  
- PORT TIME0     = vdif_TIME0 
- PORT TIME1     = vdif_TIME1 
- PORT DONE      = vdif_DONE
- PORT DLL       = vdif_DLL
+ PORT AUXTIME_n = vdif_AUXTIME_n
+ PORT TIME0 = vdif_TIME0
+ PORT TIME1 = vdif_TIME1
+ PORT DONE = vdif_DONE
+ PORT DLL = vdif_DLL
 # PORT DataRdy = 0b0000
 # PORT TimeCode = 0x00000000
 # PORT dataIn = 0x0000000000000000
- PORT To10GbeTxData = alma_pic_r1_ten_GbE_tx_data
- PORT To10GbeTxDataValid = alma_pic_r1_ten_GbE_tx_valid
- PORT To10GbeTxEOF = alma_pic_r1_ten_GbE_tx_end_of_frame
+ PORT To10GbeTxData = alma_pic_r2_ten_GbE_v2_tx_data
+ PORT To10GbeTxDataValid = alma_pic_r2_ten_GbE_v2_tx_valid
+# PORT To10GbeTxEOF = alma_pic_r1_ten_GbE_tx_end_of_frame
+ PORT To10GbeTxEOF = alma_pic_r2_ten_Gbe_v2_tx_end_of_frame
+ PORT To10Gbe_CFIFO = alma_pic_r2_ten_GbE_v2_CFIFO
  PORT test_port_out = alma_pic_r2_to_PPC_0_user_data_in
- PORT test_port_in0 = alma_pic_r2_frm_PPC_0_user_data_out 
- PORT test_port_in1 = alma_pic_r2_frm_PPC_1_user_data_out 
+ PORT test_port_in0 = alma_pic_r2_frm_PPC_0_user_data_out
+ PORT test_port_in1 = alma_pic_r2_frm_PPC_1_user_data_out
  PORT ROACHTP = vdif_roachtp
- PORT ROUTB   = vdif_routb
+ PORT ROUTB = vdif_routb
  PORT DAC_CLK_p = vdif_DAC_CLK_p
- PORT DAC_CLK_n = vdif_DAC_CLK_n 
- PORT DAC_IN_A  = vdif_DAC_IN_A 
- PORT DAC_IN_B  = vdif_DAC_IN_B
-# PORT DAC_IN_A0 = vdif_DAC_IN_A0  
- 
+ PORT DAC_CLK_n = vdif_DAC_CLK_n
+ PORT DAC_IN_A = vdif_DAC_IN_A
+ PORT DAC_IN_B = vdif_DAC_IN_B
 END
 
-##############################################
+# PORT DAC_IN_A0 = vdif_DAC_IN_A0
+# #############################################
 # User XSG IP core                           #
-##############################################
-
+# #############################################
 BEGIN alma_pic_r2
  PARAMETER INSTANCE = alma_pic_r2_XSG_core_config
  PARAMETER HW_VER = 1.00.a
@@ -269,7 +267,9 @@ BEGIN alma_pic_r2
  PORT alma_pic_r2_ten_Gbe_v2_led_rx = alma_pic_r2_ten_Gbe_v2_led_rx
  PORT alma_pic_r2_ten_Gbe_v2_led_tx = alma_pic_r2_ten_Gbe_v2_led_tx
  PORT alma_pic_r2_ten_Gbe_v2_led_up = alma_pic_r2_ten_Gbe_v2_led_up
- PORT alma_pic_r2_ten_Gbe_v2_rx_bad_frame = alma_pic_r2_ten_Gbe_v2_rx_bad_frame
+ PORT alma_pic_r2_ten_Gbe_v2_rx_bad_frame = alma_pic_r2_ten_G
+         port map (
+be_v2_rx_bad_frame
  PORT alma_pic_r2_ten_Gbe_v2_rx_data = alma_pic_r2_ten_Gbe_v2_rx_data
  PORT alma_pic_r2_ten_Gbe_v2_rx_end_of_frame = alma_pic_r2_ten_Gbe_v2_rx_end_of_frame
  PORT alma_pic_r2_ten_Gbe_v2_rx_overrun = alma_pic_r2_ten_Gbe_v2_rx_overrun
@@ -281,20 +281,17 @@ BEGIN alma_pic_r2
  PORT alma_pic_r2_ten_Gbe_v2_rst = alma_pic_r2_ten_Gbe_v2_rst
  PORT alma_pic_r2_ten_Gbe_v2_rx_ack = alma_pic_r2_ten_Gbe_v2_rx_ack
  PORT alma_pic_r2_ten_Gbe_v2_rx_overrun_ack = alma_pic_r2_ten_Gbe_v2_rx_overrun_ack
- PORT alma_pic_r2_ten_Gbe_v2_tx_data = alma_pic_r2_ten_Gbe_v2_tx_data
+# PORT alma_pic_r2_ten_Gbe_v2_tx_data = alma_pic_r2_ten_Gbe_v2_tx_data
  PORT alma_pic_r2_ten_Gbe_v2_tx_dest_ip = alma_pic_r2_ten_Gbe_v2_tx_dest_ip
  PORT alma_pic_r2_ten_Gbe_v2_tx_dest_port = alma_pic_r2_ten_Gbe_v2_tx_dest_port
- PORT alma_pic_r2_ten_Gbe_v2_tx_end_of_frame = alma_pic_r2_ten_Gbe_v2_tx_end_of_frame
- PORT alma_pic_r2_ten_Gbe_v2_tx_valid = alma_pic_r2_ten_Gbe_v2_tx_valid
 END
 
-############################
+# PORT alma_pic_r2_ten_Gbe_v2_tx_end_of_frame = alma_pic_r2_ten_Gbe_v2_tx_end_of_frame
+# PORT alma_pic_r2_ten_Gbe_v2_tx_valid = alma_pic_r2_ten_Gbe_v2_tx_valid
+# ###########################
 # Simulink interfaces      #
-############################
-
+# ###########################
 # alma_pic_r2/XSG core config
-
-
 # alma_pic_r2/frm_PPC_0
 BEGIN opb_register_ppc2simulink
  PARAMETER INSTANCE = alma_pic_r2_frm_PPC_0
@@ -324,11 +321,11 @@ BEGIN kat_ten_gb_eth
  PARAMETER INSTANCE = alma_pic_r2_ten_Gbe_v2
  PARAMETER HW_VER = 1.00.a
  PARAMETER FABRIC_MAC = 0x123456780000
- PARAMETER FABRIC_IP = 0xC0A80514
+ PARAMETER FABRIC_IP = 0xC0A80310
  PARAMETER FABRIC_PORT = 0x2710
  PARAMETER FABRIC_GATEWAY = 0x1
  PARAMETER FABRIC_ENABLE = 1
- PARAMETER LARGE_PACKETS = 0
+ PARAMETER LARGE_PACKETS = 1
  PARAMETER RX_DIST_RAM = 1
  PARAMETER CPU_RX_ENABLE = 1
  PARAMETER CPU_TX_ENABLE = 1
@@ -339,10 +336,10 @@ BEGIN kat_ten_gb_eth
  PARAMETER C_BASEADDR = 0x01004000
  PARAMETER C_HIGHADDR = 0x01007FFF
  BUS_INTERFACE SOPB = opb0
- PORT OPB_Clk = epb_clk
  BUS_INTERFACE PHY_CONF = phy_conf0
  BUS_INTERFACE XAUI_CONF = xaui_conf0
  BUS_INTERFACE XGMII = xgmii0
+ PORT OPB_Clk = epb_clk
  PORT led_rx = alma_pic_r2_ten_Gbe_v2_led_rx
  PORT led_tx = alma_pic_r2_ten_Gbe_v2_led_tx
  PORT led_up = alma_pic_r2_ten_Gbe_v2_led_up
@@ -359,23 +356,24 @@ BEGIN kat_ten_gb_eth
  PORT rx_ack = alma_pic_r2_ten_Gbe_v2_rx_ack
  PORT rx_overrun_ack = alma_pic_r2_ten_Gbe_v2_rx_overrun_ack
  PORT tx_data = alma_pic_r2_ten_Gbe_v2_tx_data
- PORT tx_dest_ip = alma_pic_r2_ten_Gbe_v2_tx_dest_ip
- PORT tx_dest_port = alma_pic_r2_ten_Gbe_v2_tx_dest_port
+ PORT tx_dest_ip = 0xC0A80310
+# PORT tx_dest_port = alma_pic_r2_ten_Gbe_v2_tx_dest_port
+ PORT tx_dest_port = 0xEA60
  PORT tx_end_of_frame = alma_pic_r2_ten_Gbe_v2_tx_end_of_frame
  PORT tx_valid = alma_pic_r2_ten_Gbe_v2_tx_valid
- PORT clk = sys_clk
+ PORT clk = alma_pic_r2_ten_GbE_v2_CFIFO
  PORT xaui_clk = xaui_clk
  PORT xaui_reset = sys_reset
 END
 
 BEGIN xaui_phy
-  PARAMETER INSTANCE = xaui_phy_0
-  PARAMETER HW_VER = 1.00.a
-  BUS_INTERFACE XAUI_SYS = xaui_sys0
-  BUS_INTERFACE XAUI_CONF = xaui_conf0
-  BUS_INTERFACE XGMII    = xgmii0
-  PORT reset   = sys_reset
-  PORT xaui_clk = xaui_clk
+ PARAMETER INSTANCE = xaui_phy_0
+ PARAMETER HW_VER = 1.00.a
+ BUS_INTERFACE XAUI_SYS = xaui_sys0
+ BUS_INTERFACE XAUI_CONF = xaui_conf0
+ BUS_INTERFACE XGMII = xgmii0
+ PORT reset = sys_reset
+ PORT xaui_clk = xaui_clk
 END
 
 # alma_pic_r2/to_PPC_0
