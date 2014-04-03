@@ -1,2 +1,3 @@
 FILES
 VDIF_fifo.ngc
+fifo_66x2k_behav.ngc
