@@ -13,7 +13,7 @@ entity sfre_gen is
 
 		   grs     				: in std_logic; 								-- Grs is the general reset.  It holds the logic reset while it is high
 		   
-		   runtg     			: in std_logic; 								-- the rising edge of RunTg tells the logic to start at the next 1PPS
+		   RunFm     			: in std_logic; 								-- the rising edge of RunFm tells the logic to start at the next 1PPS
 
 		   c125					: in std_logic; 								-- 125 MHz clock
 		   
@@ -28,7 +28,7 @@ end sfre_gen;
 
 architecture comportamental of sfre_gen is
 signal init_req: std_logic:= '0';												-- This signal is used to request initialization of the SFRE
-signal RunTG_Z1: std_logic:= '0';												-- This signal is used to positive edge detect RunTG
+signal RunFm_Z1: std_logic:= '0';												-- This signal is used to positive edge detect RunFm
 signal one_pps_counter: std_logic_vector(29 downto 0):= "00" & X"000_0000"; 			-- 30 bits counter
 signal epoch_register: std_logic_vector(29 downto 0):= "00" & X"000_0000"; 			  -- 30 bits register for storing the epoch value, initial value is 0x0000000
 
@@ -41,13 +41,13 @@ begin
 
 	if C125='1' and C125'event then										-- all the events happens upon the clock rising edge
 		epoch_register <= epoch;												-- load epoch register with the epoch input value
-		RunTG_Z1 <= RunTG;                              -- generate RunTG delayed by 1 clock
+		RunFm_Z1 <= RunFm;                              -- generate RunFm delayed by 1 clock
 
-		if grs='1' or RunTG = '0' then 									-- grs=1 => general reset, RunTG=0, stop this module
+		if grs='1' or RunFm = '0' then 									-- grs=1 => general reset, RunFm=0, stop this module
 			one_pps_counter <= "00" & X"000_0000";				-- reset the one pps counter
 			init_req <= '0';													    -- reset the "init_req" signal
 		else	
-		  if RunTG ='1' AND RunTG_Z1 = '0' then 
+		  if RunFm ='1' AND RunFm_Z1 = '0' then 
 			  init_req <= '1' ;									          -- request initialization at the next 1PPS
 			end if;
 			
