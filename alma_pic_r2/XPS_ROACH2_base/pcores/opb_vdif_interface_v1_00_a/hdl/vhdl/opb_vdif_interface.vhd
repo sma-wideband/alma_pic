@@ -69,8 +69,8 @@ entity opb_vdif_interface is
       TE_n            : in std_logic;
       AUXTIME_p       : in std_logic;   --an extram time signal distributed with the TE; not used, but an FPGA interface in included
       AUXTIME_n       : in std_logic;      
-      TIME0           : out std_logic;  --the 1 msec TE signal to the microprocessor interrupt
-      TIME1           : out std_logic;  --the 48 msec TE signal to the microprocessor interrupt      
+      TIME0           : out std_logic;  --the 48 msec TE signal to the microprocessor interrupt
+      TIME1           : out std_logic;  --the 1 msec TE signal to the microprocessor interrupt      
       DONE            : out std_logic;  --signal to indicate to microprocessor that FPGA is programmed.  Drive high      
       DLL             : out std_logic;  --signal to indicate that DLL is locked.  Eventually tie to MMCM.  For now tie high      
 --      DataRdy         : in std_logic_vector(nch-1 downto 0);
@@ -643,7 +643,10 @@ is
     signal stat_m1_sig          : std_logic_vector(23 downto 0) := X"0B_0A09";
     signal stat_m3_sig          : std_logic_vector(23 downto 0) := X"0F_0E0D";
 
-
+    --auxiliary signal for operating the system monitor
+    signal clkfbout             : std_logic;
+    signal CLK_OUT2             : std_logic;
+    signal clkout1              : std_logic;
 
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
@@ -1746,8 +1749,7 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
      else
        C167_reg12_CE_sig <= '0';
      end if;                                   
-	end process;	
-
+	end process;
 	
 	-------------------------------------------------------------------------------
 --mux64 for ROACHTP0
@@ -1938,6 +1940,155 @@ get_tst_freq3: process(CFIFO)
        end if;
      end if;  
    end process;	
--------------------------------------------------------------------------------
--------------------------------------------------------------------------------
+
+-------------
+  mmcm_adv_inst_2 : MMCM_ADV
+  generic map
+   (BANDWIDTH            => "OPTIMIZED",
+    CLKOUT4_CASCADE      => FALSE,
+    CLOCK_HOLD           => FALSE,
+    COMPENSATION         => "ZHOLD",
+    STARTUP_WAIT         => FALSE,
+    DIVCLK_DIVIDE        => 1,
+    CLKFBOUT_MULT_F      => 10.000,
+    CLKFBOUT_PHASE       => 0.000,
+    CLKFBOUT_USE_FINE_PS => FALSE,
+    CLKOUT0_DIVIDE_F     => 10.000,
+    CLKOUT0_PHASE        => 0.000,
+    CLKOUT0_DUTY_CYCLE   => 0.500,
+    CLKOUT0_USE_FINE_PS  => FALSE,
+    CLKOUT1_DIVIDE       => 20,
+    CLKOUT1_PHASE        => 0.000,
+    CLKOUT1_DUTY_CYCLE   => 0.500,
+    CLKOUT1_USE_FINE_PS  => FALSE,
+    CLKIN1_PERIOD        => 10.000,
+    REF_JITTER1          => 0.010)
+  port map
+    -- Output clocks
+   (CLKFBOUT            => clkfbout,
+    CLKFBOUTB           => OPEN,
+    CLKOUT0             => OPEN,
+    CLKOUT0B            => OPEN,
+    CLKOUT1             => clkout1,
+    CLKOUT1B            => OPEN,
+    CLKOUT2             => OPEN,
+    CLKOUT2B            => OPEN,
+    CLKOUT3             => OPEN,
+    CLKOUT3B            => OPEN,
+    CLKOUT4             => OPEN,
+    CLKOUT5             => OPEN,
+    CLKOUT6             => OPEN,
+    -- Input clock control
+    CLKFBIN             => clkfbout,
+    CLKIN1              => adc_clk,
+    CLKIN2              => '0',
+    -- Tied to always select the primary input clock
+    CLKINSEL            => '1',
+    -- Ports for dynamic reconfiguration
+    DADDR               => (others => '0'),
+    DCLK                => '0',
+    DEN                 => '0',
+    DI                  => (others => '0'),
+    DO                  => OPEN,
+    DRDY                => OPEN,
+    DWE                 => '0',
+    -- Ports for dynamic phase shift
+    PSCLK               => '0',
+    PSEN                => '0',
+    PSINCDEC            => '0',
+    PSDONE              => OPEN,
+    -- Other control and status signals
+    LOCKED              => OPEN,
+    CLKINSTOPPED        => OPEN,
+    CLKFBSTOPPED        => OPEN,
+    PWRDWN              => '0',
+    RST                 => '0');
+
+  -- Output buffering
+  -------------------------------------
+
+
+  clkout2_buf : BUFG
+  port map
+   (O   => CLK_OUT2,
+    I   => clkout1);
+
+
+ SYSMON_INST : SYSMON
+     generic map(
+        INIT_40 => X"0000", -- config reg 0
+        INIT_41 => X"30fe", -- config reg 1
+        INIT_42 => X"0a00", -- config reg 2
+        INIT_48 => X"0100", -- Sequencer channel selection
+        INIT_49 => X"0000", -- Sequencer channel selection
+        INIT_4A => X"0000", -- Sequencer Average selection
+        INIT_4B => X"0000", -- Sequencer Average selection
+        INIT_4C => X"0000", -- Sequencer Bipolar selection
+        INIT_4D => X"0000", -- Sequencer Bipolar selection
+        INIT_4E => X"0000", -- Sequencer Acq time selection
+        INIT_4F => X"0000", -- Sequencer Acq time selection
+        INIT_50 => X"b5ed", -- Temp alarm trigger
+        INIT_51 => X"5999", -- Vccint upper alarm limit
+        INIT_52 => X"e000", -- Vccaux upper alarm limit
+        INIT_53 => X"a6b3",  -- Temp alarm OT upper 55deg
+        INIT_54 => X"a93a", -- Temp alarm reset 45deg
+        INIT_55 => X"5111", -- Vccint lower alarm limit
+        INIT_56 => X"caaa", -- Vccaux lower alarm limit
+        INIT_57 => X"ae4e",  -- Temp alarm OT reset
+        SIM_DEVICE => "VIRTEX6",
+        SIM_MONITOR_FILE => "design.txt"
+        )
+
+port map (
+        CONVST              => '0',
+        CONVSTCLK           => '0',
+        DADDR(6 downto 0)   => "0000000",
+        DCLK                => CLK_OUT2,
+        DEN                 => '0',
+        DI(15 downto 0)     => "0000000000000000",
+        DWE                 => '0',
+        RESET               => '0',
+        VAUXN(15 downto 0)  => "0000000000000000",
+        VAUXP(15 downto 0)  => "0000000000000000",
+        ALM                 => open,
+        BUSY                => open,
+        CHANNEL             => open,
+        DO                  => open,
+        DRDY                => open,
+        EOC                 => open,
+        EOS                 => open,
+        JTAGBUSY            => open,
+        JTAGLOCKED          => open,
+        JTAGMODIFIED        => open,
+        OT                  => c167_reg3_sig(2),
+        VN                  => '0',
+        VP                  => '0'
+         );
+
+-- FRAME_ECC_VIRTEX6: Configuration Frame Error Correction
+-- Virtex-6
+-- Xilinx HDL Libraries Guide, version 13.1
+FRAME_ECC_VIRTEX6_inst : FRAME_ECC_VIRTEX6
+generic map (
+FARSRC => "EFAR", -- Determines if the output of FAR[23:0] configuration register points
+-- to the FAR or EFAR. Sets configuration option register bit CTL0[7].
+FRAME_RBT_IN_FILENAME => "NONE" -- This file is output by the ICAP_VIRTEX6 model and it contains Frame
+-- Data information for the Raw Bitstream (RBT) file. The FRAME_ECC
+-- model will parse this file, calculate ECC and output any error
+-- conditions.
+)
+port map (
+CRCERROR => c167_reg3_sig(3), -- 1-bit output: Output indicating a CRC error
+ECCERROR => OPEN, -- 1-bit output: Output indicating an ECC error
+ECCERRORSINGLE => OPEN, -- 1-bit output: Output Indicating single-bit Frame ECC error detected.
+FAR => OPEN, -- 24-bit output: Frame Address Register Value output
+SYNBIT => OPEN, -- 5-bit output: Output bit address of error
+SYNDROME => OPEN, -- 13-bit output: Output location of erroneous bit
+SYNDROMEVALID => OPEN, -- 1-bit output: Frame ECC output indicating the SYNDROME output is
+-- valid.
+SYNWORD => OPEN -- 7-bit output: Word output in the frame where an ECC error has been
+-- detected
+);
+
+
 end architecture vdif_arch;
