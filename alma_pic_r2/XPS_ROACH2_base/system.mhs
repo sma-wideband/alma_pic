@@ -77,11 +77,11 @@
 BEGIN xaui_infrastructure
  PARAMETER INSTANCE = xaui_infrastructure_inst
  PARAMETER HW_VER = 1.00.a
- PARAMETER ENABLE0 = 1
- PARAMETER TX_LANE_STEER0 = 0
- PARAMETER RX_INVERT0 = 1
- BUS_INTERFACE XAUI_SYS_0 = xaui_sys0
- BUS_INTERFACE PHY_CONF_0 = phy_conf0
+ PARAMETER ENABLE7 = 1
+ PARAMETER TX_LANE_STEER7 = 1
+ PARAMETER RX_INVERT7 = 0
+# BUS_INTERFACE XAUI_SYS_0 = xaui_sys0
+# BUS_INTERFACE PHY_CONF_0 = phy_conf0
  PORT xaui_refclk_n = xaui_refclk_n
  PORT xaui_refclk_p = xaui_refclk_p
  PORT mgt_rx_n = mgt_rx_n
@@ -90,6 +90,8 @@ BEGIN xaui_infrastructure
  PORT mgt_tx_p = mgt_tx_p
  PORT reset = sys_reset
  PORT xaui_clk = xaui_clk
+ BUS_INTERFACE XAUI_SYS_7 = xaui_sys7
+ BUS_INTERFACE PHY_CONF_7 = phy_conf7
 END
 
 BEGIN roach_infrastructure
@@ -196,6 +198,17 @@ BEGIN sys_block
 # PORT fab_clk    = sys_clk
  PORT fab_clk = sys_clk
 END
+
+BEGIN sfp_mdio_controller
+ PARAMETER HW_VER = 1.00.a 
+ PARAMETER INSTANCE = sfp_mdio_controller_inst
+ PARAMETER C_BASEADDR = 0x00060000  
+ PARAMETER C_HIGHADDR = 0x0006FFFF 
+ BUS_INTERFACE SOPB = opb0  
+ PORT OPB_Clk = epb_clk  
+ PORT mgt_gpio = mgt_gpio
+END 
+PORT mgt_gpio = mgt_gpio, VEC = [11:0], DIR = IO
 
 # ALMA PIC interface
 BEGIN opb_vdif_interface
@@ -328,15 +341,15 @@ BEGIN kat_ten_gb_eth
  PARAMETER CPU_RX_ENABLE = 1
  PARAMETER CPU_TX_ENABLE = 1
  PARAMETER PREEMPHASIS = 4
- PARAMETER POSTEMPHASIS = 0
+ PARAMETER POSTEMPHASIS = 9
  PARAMETER DIFFCTRL = 10
  PARAMETER RXEQMIX = 7
  PARAMETER C_BASEADDR = 0x01004000
  PARAMETER C_HIGHADDR = 0x01007FFF
  BUS_INTERFACE SOPB = opb0
- BUS_INTERFACE PHY_CONF = phy_conf0
- BUS_INTERFACE XAUI_CONF = xaui_conf0
- BUS_INTERFACE XGMII = xgmii0
+ BUS_INTERFACE PHY_CONF = phy_conf7
+ BUS_INTERFACE XAUI_CONF = xaui_conf7
+ BUS_INTERFACE XGMII = xgmii7
  PORT OPB_Clk = epb_clk
  PORT led_rx = alma_pic_r2_ten_Gbe_v2_led_rx
  PORT led_tx = alma_pic_r2_ten_Gbe_v2_led_tx
@@ -354,7 +367,7 @@ BEGIN kat_ten_gb_eth
  PORT rx_ack = alma_pic_r2_ten_Gbe_v2_rx_ack
  PORT rx_overrun_ack = alma_pic_r2_ten_Gbe_v2_rx_overrun_ack
  PORT tx_data = alma_pic_r2_ten_Gbe_v2_tx_data
- PORT tx_dest_ip = 0xC0A80310
+ PORT tx_dest_ip = 0xC0A80311
 # PORT tx_dest_port = alma_pic_r2_ten_Gbe_v2_tx_dest_port
  PORT tx_dest_port = 0xEA60
  PORT tx_end_of_frame = alma_pic_r2_ten_Gbe_v2_tx_end_of_frame
@@ -365,11 +378,11 @@ BEGIN kat_ten_gb_eth
 END
 
 BEGIN xaui_phy
- PARAMETER INSTANCE = xaui_phy_0
+ PARAMETER INSTANCE = xaui_phy_7
  PARAMETER HW_VER = 1.00.a
- BUS_INTERFACE XAUI_SYS = xaui_sys0
- BUS_INTERFACE XAUI_CONF = xaui_conf0
- BUS_INTERFACE XGMII = xgmii0
+ BUS_INTERFACE XAUI_SYS = xaui_sys7
+ BUS_INTERFACE XAUI_CONF = xaui_conf7
+ BUS_INTERFACE XGMII = xgmii7
  PORT reset = sys_reset
  PORT xaui_clk = xaui_clk
 END
