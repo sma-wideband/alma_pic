@@ -7,7 +7,7 @@ use work.rdbe_pkg.all;
 Library UNISIM;
 use UNISIM.vcomponents.all;
 
--- # $Id: opb_vdif_interface.vhd,v 1.4 2014/01/31 21:09:14 rlacasse Exp $
+-- # $Id: opb_vdif_interface.vhd,v 1.9 2014/04/11 14:00:37 rlacasse Exp $
 
 entity opb_vdif_interface is
   generic ( 
@@ -207,7 +207,10 @@ is
           frm_sync   : in std_logic;
           td_out     : out std_logic_vector(63 downto 0);
           data_sel   : in std_logic;
-          sum_di     : out std_logic_vector(63 downto 0)
+          sum_di     : out std_logic_vector(63 downto 0);
+          ditp0      : out std_logic;
+          ditp1      : out std_logic;
+          ditp2      : out std_logic 
        );
     end component;    
     
@@ -232,6 +235,7 @@ is
          FrameNum          	: out std_logic_vector (23 downto 0); 	-- for VDIF frame number
 --         epoch             	: in  std_logic_vector (29 downto 0);  	-- initial value for SFRE  get rid of this duplicate!!!!!!!!!
          SFRE              	: out std_logic_vector (29 downto 0); 	-- for VDIF seconds field
+         OneMsec_pic        : out std_logic; 											-- 8-ns wide 1-msec pulse for data_interface
          TIME1             	: out std_logic; 				-- for c167 1-msec interrupt; 
          TIME0             	: out std_logic; 				-- for c167 48-msec interrupt;
          one_PPS_PIC       	: out std_logic; 				-- for monitoring internal 1 PPS (LVDS output)
@@ -594,6 +598,7 @@ is
    signal FrameNum_sig          : std_logic_vector (23 downto 0) := x"00_0000"; 	          -- for VDIF frame number
    signal epoch_sig             : std_logic_vector (29 downto 0) := b"00" & x"000_0000";   -- initial value for SFRE
    signal SFRE_sig              : std_logic_vector (29 downto 0) := b"00" & x"000_0000"; 	-- for VDIF seconds field
+   signal OneMsec_pic_sig       : std_logic;                                              -- 1 msec pulse, 8-ns wide
    signal TIME1_sig             : std_logic := '0'; 											                    -- for c167 48-msec interrupt; drives MGT_TX_p10 (LVDS output)
    signal GPS_Offset_sig        : std_logic_vector(27 downto 0):= x"000_0000"; 	          -- maser vs local 1PPS offset
    signal Maser_Offset_sig      : std_logic_vector(27 downto 0):= x"000_0000"; 	          -- gps vs local 1PPS offset
@@ -626,11 +631,7 @@ is
    signal coll_out_C167_sig     : std_logic_vector(7 downto 0);     --8 bits of header captured at TE, for status to C167
    signal To10GbeTxDataValid_sig  : std_logic;                      --data valid to 10 Gbe module and test point from formatter
    signal To10GbeTxEOF_sig      : std_logic;                        --end of frame to 10 Gbe module and test point from formatter   
-    
-    --temporary counter to generate OneMsec until we integrate the timing_gen module
-    signal OneMsecCtr           : std_logic_vector(17 downto 0) := "000000000000000000";
-    signal OneMsecRst          : std_logic; 
-    
+       
     signal frm_sync_sig         : std_logic := '0';
    
     --status signals
@@ -647,6 +648,11 @@ is
     signal clkfbout             : std_logic;
     signal CLK_OUT2             : std_logic;
     signal clkout1              : std_logic;
+    
+    --test points from modules
+    signal ditp0_sig    : std_logic;
+    signal ditp1_sig    : std_logic;
+    signal ditp2_sig    : std_logic; 
 
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
@@ -744,7 +750,7 @@ begin
       stat_msec  => c167_reg17_sig(6 downto 0), --control reg 3, bits 6 to 0 from C167       
       prn_run    => c167_reg15_sig(0),          --control reg 1, bit 0 from C167     
       stat_start => c167_reg15_sig(1),          --control reg 1, bit 1 from C167
-      OneMsec    => OneMsecRst,     
+      OneMsec    => OneMsec_pic_sig,     
       ecnt       => c167_reg34_sig,             --error counter reg, target 34        
       stat_p3    => stat_p3_sig, --statistics, +3, 3 bytes max
       stat_p1    => stat_p1_sig, --statistics, +1, 3 bytes max     
@@ -755,7 +761,11 @@ begin
       frm_sync   => frm_sync_sig,    
       td_out     => td_out_sig,  
       data_sel   => data_sel_sig,
-      sum_di     => DATA2_sig 
+      sum_di     => DATA2_sig, 
+      ditp0      => ditp0_sig, 
+      ditp1      => ditp1_sig, 
+      ditp2      => ditp2_sig 
+      
    );
    -- timing generator connection
    timing_generator_0: timing_generator
@@ -773,6 +783,7 @@ begin
           FrameNum           => FrameNum_sig,       -- to data formatter
 --          epoch              => epoch_sig,          -- needs to be added    IN  replaced by SFRE_init
           SFRE               => SFRE_sig,           -- to data formatter
+          OneMsec_pic        => OneMsec_pic_sig, 		-- 8-ns wide 1-msec pulse for data_interface
           TIME0              => TIME0_sig,          -- 1 msec interrupt to C167
           TIME1              => TIME1_sig,          -- 48 msec interrupt to C167
           one_PPS_PIC        => PPS_PIC_sig,        -- ok                   OUT
@@ -1109,6 +1120,7 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
   To10GbeTxEOF        <= To10GbeTxEOF_sig; 
   To10Gbe_CFIFO       <= CFIFO;
 
+
   -- EPB register access process
     RegisterAccess : process(OPB_Rst, epb_clk, OPB_select,
                             OPB_RNW, DeviceAddr(18 downto 0))
@@ -1216,7 +1228,8 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
               when others => null;
             end case;
             
-          else									-- read
+          else				
+					-- read
  
             case (DeviceAddr(7 downto 2)) is
             when "000000" => DeviceDataOut <= c167_reg0_sig & c167_reg1_sig & c167_reg2_sig & c167_reg3_sig ;      				--registers 0,1,2,3
@@ -1757,7 +1770,7 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
   mux_rtp0 : mux64
   	     port map (
             data_sel => c167_reg1_sig(5 downto 0),
-            data_in(0)  => sum_data(0),        --Sum Data LSB channel 0
+            data_in(0)  => c167_reg15_sig(0),  --sum_data(0),        --Sum Data LSB channel 0
             data_in(1)  => sum_data(2),        --Sum Data LSB channel 1
             data_in(2)  => sum_data(4),        --          .
             data_in(3)  => sum_data(6),        --          .
@@ -1789,16 +1802,16 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
             data_in(29) => sum_data(58),
             data_in(30) => sum_data(60),
             data_in(31) => sum_data(62),       --Sum Data LSB channel 31
-            data_in(32) => TE_sig,
+            data_in(32) => TE_sig,             --0x20
             data_in(33) => AUXTIME_sig,            
             data_in(34) => PPS_Maser_sig,
             data_in(35) => PPS_GPS_sig,            
             data_in(36) => c167_reg0_sig(0),   
             data_in(37) => c167_reg0_sig(7),                      
-            data_in(38) => OneMsecRst,              
-            data_in(39) => OneMsecCtr(0),
-            data_in(40) => OneMsecCtr(1),
-            data_in(41) => OneMsecCtr(2),
+            data_in(38) => ditp0_sig,          --init_ctr from data interface,0x26
+            data_in(39) => ditp1_sig,          -- ctr LSB, 0x27
+            data_in(40) => ditp2_sig,
+            data_in(41) => open,
             data_in(42) => stat_p1_sig(0),
             data_in(43) => stat_p1_sig(2),
             data_in(44) => stat_p1_sig(6),  --prg(2) XOR prg(0)
@@ -1815,8 +1828,9 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
             data_in(55) => TIME1_sig,
             data_in(56) => PPS_PIC_sig,
             data_in(57) => c167_reg14_sig(4),
-            data_in(58) => PPS_PIC_adv_sig,           
-            data_in(63 downto 59) => (others => '0'),
+            data_in(58) => PPS_PIC_adv_sig,
+            data_in(59) => OneMsec_pic_sig,           
+            data_in(63 downto 60) => (others => '0'),
             data_out => ROACHTP(0)	     
   	     );
 	     
@@ -1825,7 +1839,7 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
   mux_rtp1 : mux64
   	     port map (
             data_sel => c167_reg2_sig(5 downto 0),
-            data_in(0)  => sum_data(1),        --Sum Data MSB channel 0
+            data_in(0)  => ditp0_sig,     --sum_data(1),        --Sum Data MSB channel 0
             data_in(1)  => sum_data(3),        --Sum Data MSB channel 1
             data_in(2)  => sum_data(5),        --          .
             data_in(3)  => sum_data(7),        --          .
@@ -1885,15 +1899,15 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
             data_in(57) => To10GbeTxDataValid_sig,--data valid signal from formatter,address 0x39
             data_in(58) => To10GbeTxEOF_sig,      --LSB of data to 10 GbE module,address 0x3a            
             data_in(59) => PPS_read_sig,          --PIC 1PPS as captured by CFIFO,address 0x3b
-            data_in(63 downto 60) => (others => '0'),
+            data_in(60) => ditp2_sig,                 --sum_in_bit_Z1 from data interface
+            data_in(63 downto 61) => (others => '0'),
             data_out => ROACHTP(1)            
   	     );  	
   	     
 --ROUTB(3 downto 0) test points  	          
-  ROUTB_sig(0) <= test_ctr(7);
+  ROUTB_sig(0) <= OneMsec_pic_sig;   --test_ctr(7);
 --  ROUTB_sig(1) <= test_ctr_fifo(7);
---  ROUTB_sig(1) <= OneMsecRst;
-  ROUTB_sig(1) <= PPS_PIC_sig;
+  ROUTB_sig(1) <= ditp1_sig;              --PPS_PIC_sig;
   ROUTB_sig(2) <= test_ctr_125(7);
   ROUTB_sig(3) <= C125;  
 	
@@ -1921,25 +1935,7 @@ get_tst_freq3: process(CFIFO)
 	  end if;
 	end process;
 	
-   --temporary process for generating a 1msec tic until we integrate the timing generator module
-   temp_1msec: process(C125)
-   begin
-     if(rising_edge(C125)) then
-       if OneMsecRst = '1' then
-         OneMsecCtr <= "000000000000000000";
-         OneMsecRst <= '0';
-         OneMsecCtr <= OneMsecCtr + 1;
-       else
---       if OneMsecCtr = X"00003" then
-         if OneMsecCtr = X"1E847" then
-           OneMsecCtr <= "000000000000000000"; 
-           OneMsecRst <= '1';
-         else
-           OneMsecCtr <= OneMsecCtr + 1;
-         end if;
-       end if;
-     end if;  
-   end process;	
+
 
 -------------
   mmcm_adv_inst_2 : MMCM_ADV
