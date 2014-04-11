@@ -72,7 +72,12 @@ port(
    data_sel   : in std_logic;
    
    --sum data to formatter
-   sum_di     : out std_logic_vector(63 downto 0)
+   sum_di     : out std_logic_vector(63 downto 0);
+   
+   -- test points
+   ditp0    : out std_logic;
+   ditp1    : out std_logic;
+   ditp2    : out std_logic  
 );
 end data_interface;
 
@@ -82,6 +87,9 @@ architecture comportamental of data_interface is
    signal sum_data_sig    : std_logic_vector(63 downto 0); --connected to sum_data
    signal sum_data_sig_Z1 : std_logic_vector(63 downto 0); --for registered sum_data
    signal td_sig       : std_logic_vector(63 downto 0); --test data
+   signal ditp0_sig    : std_logic;  --test point   
+   signal ditp1_sig    : std_logic;  --test point
+   signal ditp2_sig    : std_logic;  --test point   
 
    --component declarations
    component sum_data_chk
@@ -99,8 +107,10 @@ architecture comportamental of data_interface is
          stat_p1    : out std_logic_vector(23 downto 0); --plus 1 statistics
          stat_m1    : out std_logic_vector(23 downto 0); --minus 1 statistics
          stat_m3    : out std_logic_vector(23 downto 0); --minus 3 statistics
-         stat_rdy   : out std_logic  -- statistics done indicator
-
+         stat_rdy   : out std_logic;  -- statistics done indicator
+         sdtp0      : out std_logic;  --test point   
+         sdtp1      : out std_logic;  --test point
+         sdtp2      : out std_logic  --test point
       );
    end component sum_data_chk;
 
@@ -141,8 +151,10 @@ begin
       stat_p1    => stat_p1,
       stat_m1    => stat_m1,
       stat_m3    => stat_m3,
-      stat_rdy   => stat_rdy
-
+      stat_rdy   => stat_rdy,
+      sdtp0      => ditp0_sig,  
+      sdtp1      => ditp1_sig,
+      sdtp2      => ditp2_sig
    );
 
    test_data_gen_0: test_data_gen
@@ -163,7 +175,10 @@ begin
   );
   
    --signal connections
-   sum_data_sig <= sum_data;    
+   sum_data_sig <= sum_data; 
+   ditp0        <= ditp0_sig;
+   ditp1        <= ditp1_sig;
+   ditp2        <= ditp2_sig;    
   
    --processes
    process(C125)  --clock in the data
