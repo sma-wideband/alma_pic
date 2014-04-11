@@ -55,7 +55,12 @@ entity sum_data_chk is
   stat_m3: out std_logic_vector(23 downto 0);
 
   -- statistics measurement "done" indicator
-  stat_rdy: out std_logic
+  stat_rdy: out std_logic;
+  
+  -- test points
+  sdtp0    : out std_logic;
+  sdtp1    : out std_logic;
+  sdtp2    : out std_logic    
 
    );
 end sum_data_chk;
@@ -70,7 +75,7 @@ architecture arch of sum_data_chk is
    signal prg         : std_logic_vector(34 downto 0); -- pseudo-random data generator
    signal ctr_prg     : std_logic_vector(5 downto 0);  -- state counter for pseudo-random data gen
    signal init_ecnt   : std_logic;                     -- hold error counter at zero when high
-   signal ecnt_ctr    : std_logic_vector(7 downto 0);  -- counter for prn errors   
+   signal ecnt_ctr    : std_logic_vector(7 downto 0);  -- counter for prn errors     
    signal zero_pulse  : std_logic;                     -- high for one clock after long string of 0's
    signal stat_CE     : std_logic;                     -- count enable for statistics
    signal stat_ctr_p3 : std_logic_vector(23 downto 0);  --counter for +3 stats
@@ -79,8 +84,7 @@ architecture arch of sum_data_chk is
    signal stat_ctr_m3 : std_logic_vector(23 downto 0);  --counter for -3 stats
    signal stat_indic  : std_logic_vector( 3 downto 0);  --to see what the state is during simulation
    signal intCtr      : std_logic_vector( 6 downto 0);
-   signal stat_rdy_sig: std_logic;  --to drive status ready port
-
+   signal stat_rdy_sig: std_logic;  --to drive status ready port     
 
    type statStateCtr is   --state maching for statistics measurement
    (
@@ -99,6 +103,9 @@ architecture arch of sum_data_chk is
       bit_sel  <= chan(0);         --map select bits to input port "chan"
       chan_sel <= chan(5 downto 1);
       stat_rdy <= stat_rdy_sig;
+      sdtp0    <= init_ecnt;
+      sdtp1    <= ctr_prg(0);
+      sdtp2    <= ctr_prg(1);
       
       
       process(C125)  --32:2 mux, registered
@@ -173,7 +180,7 @@ architecture arch of sum_data_chk is
                       ctr_var := "000000";
                       init_ecnt <= '1';
                       ecnt <= ecnt_ctr;      --update the output at the 1-msec tic
-                   elsif(ctr_var < 60) then
+                   elsif(ctr_var < 40) then
                       ctr_var := ctr_var + 1;
                       init_ecnt <= '1';
                    else
@@ -182,7 +189,7 @@ architecture arch of sum_data_chk is
                end if;
                   
                if(rising_edge(C125)) then
-                  if(ctr_var < 60) then  --initialize generator if required
+                  if(ctr_var < 40) then  --initialize generator if required
                      prg(34) <= sum_in_bit_Z1;
                      prg(33 downto 0) <= prg(34 downto 1);
                   else                   --run the PRG
