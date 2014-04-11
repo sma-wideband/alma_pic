@@ -9,7 +9,7 @@ use IEEE.STD_LOGIC_UNSIGNED.ALL;
 -------------------------------------------------------
 -- This component generates required timing signals and monitors internally 
 -- generated signals against external references
--- $Id: timing_generator.vhd,v 1.4 2014/01/31 21:57:27 rlacasse Exp $
+-- $Id: timing_generator.vhd,v 1.6 2014/04/11 14:03:41 rlacasse Exp $
 
 entity timing_generator is
 port(
@@ -34,8 +34,9 @@ port(
    FrameNum          : out std_logic_vector (23 downto 0); 	-- for VDIF frame number
 --   epoch             : in  std_logic_vector (29 downto 0);  -- initial value for SFRE       get rid of this duplicate!!!!!!!!!
    SFRE              : out std_logic_vector (29 downto 0); 	-- for VDIF seconds field
-   TIME1             : out std_logic; 											-- for c167 1-msec interrupt; drives MGT_TX_p9 (LVDS output)
-   TIME0             : out std_logic; 											-- for c167 48-msec interrupt; drives MGT_TX_p10 (LVDS output)
+   OneMsec_pic       : out std_logic; 											-- 8-ns wide 1-msec pulse for data_interface
+   TIME1             : out std_logic; 											-- for c167 1-msec interrupt; drives ZDOK0-A4
+   TIME0             : out std_logic; 											-- for c167 48-msec interrupt; drives ZDOK0-D2
    one_PPS_PIC       : out std_logic; 											-- for monitoring internal 1 PPS (LVDS output)
    one_PPS_MASER_OFF : out std_logic_vector(27 downto 0); 	-- maser vs local 1PPS offset
    one_PPS_GPS_OFF   : out std_logic_vector(27 downto 0); 	-- gps vs local 1PPS offset
@@ -71,13 +72,14 @@ end component;
 
 component int_gen
 	port(
-     C125       : in std_logic;    -- 125 MHz clock 
-     TE_in      : in std_logic;    -- signal derived from TE_p
-     Reset_te   : in std_logic;    -- when = 1, forces TE_err = 0		   
-     TE_pic     : out std_logic;   -- high for one clock
-     TIME1   : out std_logic;   -- 1 msec interrupt for c167 microprocessor		   
-     TIME0    : out std_logic;   -- 48 msec interrupt for c167 microprocessor
-     TE_err     : out std_logic    -- when = 1 indicates TE error 
+     C125         : in std_logic;    -- 125 MHz clock 
+     TE_in        : in std_logic;    -- signal derived from TE_p
+     Reset_te     : in std_logic;    -- when = 1, forces TE_err = 0		   
+     TE_pic       : out std_logic;   -- high for one clock
+     OneMsec_pic  : out std_logic;   -- high for one clock
+     TIME1        : out std_logic;   -- 1 msec interrupt for c167 microprocessor		   
+     TIME0        : out std_logic;   -- 48 msec interrupt for c167 microprocessor
+     TE_err       : out std_logic    -- when = 1 indicates TE error 
 
    );
 end component;
@@ -122,12 +124,14 @@ signal one_pps_pic_sig      : std_logic;
 signal one_pps_pic_adv_sig  : std_logic;
 signal nchan_sig            : std_logic_vector(4 downto 0);
 signal TE_pic_sig           : std_logic;
+signal OneMsec_pic_sig      : std_logic;
 signal dummy                : std_logic_vector(1 downto 0);
 
 
 begin
 
 	nchan_sig <= nchan;								
+	OneMsec_pic <= OneMsec_pic_sig;
 	one_PPS_PIC <= one_pps_pic_sig ;						-- one pps internally generated signal (component one_pps_pic_gen)
 	one_PPS_PIC_adv <= one_pps_pic_adv_sig; 				-- to the test points 	
 	
@@ -143,13 +147,14 @@ begin
 	 
 	int_gen_0: int_gen
         port map (
-			C125      => C125,        -- input, general 125MHz clock
-			TE_in     => TE,          -- input, connected to the TE, external TE
-			Reset_te  => reset_te,    -- input, connected to the reset_te, forces TE_err = 0
-			TE_pic    => TE_pic_sig,  -- output, derived TE; free-runs or syncs to external TE if available, high for one clock
-			TIME1  => TIME1,          -- output, 48 msec interrupt for c167 microprocessor, connected to TIME0
-			TIME0   => TIME0,         -- output, 1 msec interrupt for c167 microprocessor, connected to TIME1
-			TE_err    => TE_Err       -- output,when = 1 indicates TE error, connected to TE_Err
+			C125        => C125,        -- input, general 125MHz clock
+			TE_in       => TE,          -- input, connected to the TE, external TE
+			Reset_te    => reset_te,    -- input, connected to the reset_te, forces TE_err = 0
+			TE_pic      => TE_pic_sig,  -- output, derived TE; free-runs or syncs to external TE if available, high for one clock
+			OneMsec_pic => OneMsec_pic_sig,  --high one clock
+			TIME1       => TIME1,          -- output, 48 msec interrupt for c167 microprocessor, connected to TIME0
+			TIME0       => TIME0,         -- output, 1 msec interrupt for c167 microprocessor, connected to TIME1
+			TE_err      => TE_Err       -- output,when = 1 indicates TE error, connected to TE_Err
     );
 	
 	frame_gen_0: frame_gen
