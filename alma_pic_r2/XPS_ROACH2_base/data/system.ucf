@@ -357,27 +357,58 @@ NET "xaui_refclk_p<0>"   LOC = AT8;
 NET "xaui_refclk_p<1>"   LOC = AD8;
 NET "xaui_refclk_p<2>"   LOC = K8;
 
+# MGT Mezzanine Card Signals
+# MGT Mezzanine card GPIO
+NET "mgt_gpio<0>"        LOC = J16 | IOSTANDARD = "LVCMOS15";
+NET "mgt_gpio<1>"        LOC = H20 | IOSTANDARD = "LVCMOS15";
+NET "mgt_gpio<2>"        LOC = N18 | IOSTANDARD = "LVCMOS15";
+NET "mgt_gpio<3>"        LOC = B16 | IOSTANDARD = "LVCMOS15";
+NET "mgt_gpio<4>"        LOC = L29 | IOSTANDARD = "LVCMOS15";
+NET "mgt_gpio<5>"        LOC = K29 | IOSTANDARD = "LVCMOS15";
+NET "mgt_gpio<6>"        LOC = N15 | IOSTANDARD = "LVCMOS15";
+NET "mgt_gpio<7>"        LOC = P16 | IOSTANDARD = "LVCMOS15";
+NET "mgt_gpio<8>"        LOC = N16 | IOSTANDARD = "LVCMOS15";
+NET "mgt_gpio<9>"        LOC = P17 | IOSTANDARD = "LVCMOS15";
+NET "mgt_gpio<10>"       LOC = L15 | IOSTANDARD = "LVCMOS15";
+NET "mgt_gpio<11>"       LOC = K19 | IOSTANDARD = "LVCMOS15";
+
 ## MGT Mezzanine card transceivers
 #
-NET "mgt_rx_n<0>"        LOC = AW6;
-NET "mgt_rx_n<1>"        LOC = AY8;
-NET "mgt_rx_n<2>"        LOC = BA6;
-NET "mgt_rx_n<3>"        LOC = BB8;
+NET "mgt_rx_n<24>"       LOC = J6;
+NET "mgt_rx_n<25>"       LOC = L6;
+NET "mgt_rx_n<26>"       LOC = N6;
+NET "mgt_rx_n<27>"       LOC = P8;
+NET "mgt_rx_n<28>"       LOC = E6;
+NET "mgt_rx_n<29>"       LOC = F8;
+NET "mgt_rx_n<30>"       LOC = G6;
+NET "mgt_rx_n<31>"       LOC = H8;
 #
-NET "mgt_rx_p<0>"        LOC = AW5;
-NET "mgt_rx_p<1>"        LOC = AY7;
-NET "mgt_rx_p<2>"        LOC = BA5;
-NET "mgt_rx_p<3>"        LOC = BB7;
+NET "mgt_rx_p<24>"       LOC = J5;
+NET "mgt_rx_p<25>"       LOC = L5;
+NET "mgt_rx_p<26>"       LOC = N5;
+NET "mgt_rx_p<27>"       LOC = P7;
+NET "mgt_rx_p<28>"       LOC = E5;
+NET "mgt_rx_p<29>"       LOC = F7;
+NET "mgt_rx_p<30>"       LOC = G5;
+NET "mgt_rx_p<31>"       LOC = H7;
 #
-NET "mgt_tx_n<0>"        LOC = AW2;
-NET "mgt_tx_n<1>"        LOC = AY4;
-NET "mgt_tx_n<2>"        LOC = BA2;
-NET "mgt_tx_n<3>"        LOC = BB4;
+NET "mgt_tx_n<24>"       LOC = K4;
+NET "mgt_tx_n<25>"       LOC = L2;
+NET "mgt_tx_n<26>"       LOC = M4;
+NET "mgt_tx_n<27>"       LOC = N2;
+NET "mgt_tx_n<28>"       LOC = F4;
+NET "mgt_tx_n<29>"       LOC = G2;
+NET "mgt_tx_n<30>"       LOC = H4;
+NET "mgt_tx_n<31>"       LOC = J2;
 
-NET "mgt_tx_p<0>"        LOC = AW1;
-NET "mgt_tx_p<1>"        LOC = AY3;
-NET "mgt_tx_p<2>"        LOC = BA1;
-NET "mgt_tx_p<3>"        LOC = BB3;
+NET "mgt_tx_p<24>"       LOC = K3;
+NET "mgt_tx_p<25>"       LOC = L1;
+NET "mgt_tx_p<26>"       LOC = M3;
+NET "mgt_tx_p<27>"       LOC = N1;
+NET "mgt_tx_p<28>"       LOC = F3;
+NET "mgt_tx_p<29>"       LOC = G1;
+NET "mgt_tx_p<30>"       LOC = H3;
+NET "mgt_tx_p<31>"       LOC = J1;
 
 ## MGT mezzanine card clock inputs TODO
 #
