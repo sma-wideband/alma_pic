@@ -7,7 +7,7 @@ use work.rdbe_pkg.all;
 Library UNISIM;
 use UNISIM.vcomponents.all;
 
--- # $Id: opb_vdif_interface.vhd,v 1.9 2014/04/11 14:00:37 rlacasse Exp $
+-- # $Id: opb_vdif_interface.vhd,v 1.13 2014/05/12 12:46:32 asaez Exp $
 
 entity opb_vdif_interface is
   generic ( 
@@ -95,8 +95,10 @@ entity opb_vdif_interface is
       test_port_in0   : in  std_logic_vector(31 downto 0);  --I/O to PPC registers
       test_port_in1   : in  std_logic_vector(31 downto 0);  --I/O to PPC registers                
       ROACHTP         : out std_logic_vector(1 downto 0);
-      ROUTB           : out std_logic_vector(3 downto 0)  --test points to JR1           
-      
+      ROUTB           : out std_logic_vector(3 downto 0);   --test points to JR1         
+
+      -- 10GB Ethernet 
+      reset10GBE      : out std_logic      
     );
 end entity opb_vdif_interface;
 
@@ -246,7 +248,10 @@ is
          TE_Err          	: out std_logic;         
          reset_te        	: in  std_logic;		        -- high resets TE_Err
          one_PPS_PIC_adv    : out std_logic;
-         nchan              : in std_logic_vector(4 downto 0)     --log base 2 of number of channels
+         nchan              : in std_logic_vector(4 downto 0);     --log base 2 of number of channels
+         tgtp0              : out std_logic;  --general purpose test points
+         tgtp1              : out std_logic;
+         tgtp2              : out std_logic          
 
        );
     end component; 
@@ -469,6 +474,8 @@ is
     signal test_ctr_125    : std_logic_vector(7 downto 0)  := X"00";      
     signal C125_ds         : std_logic;                    -- for testing C125 clock     
     signal C125            : std_logic;                    -- for testing C125 clock  
+    signal C200		   : std_logic;	
+    signal C200_ds	   : std_logic;
     signal ROUTB_sig       : std_logic_vector(3 downto 0) := "0000";
     signal TimeCode_sig    : std_logic_vector(31 downto 0) := X"0000_0000";
     signal td_out_sig      : std_logic_vector(63 downto 0) := X"0000_0000_0000_0000";
@@ -478,7 +485,7 @@ is
     signal c167_reg0_sig     :std_logic_vector(7 downto 0) := X"00";  --initialization register
     signal c167_reg1_sig     :std_logic_vector(7 downto 0);           --ROACHTP0 select
     signal c167_reg2_sig     :std_logic_vector(7 downto 0);           --ROACHTP1 select
-    signal c167_reg3_sig     :std_logic_vector(7 downto 0) := X"A0";           --    
+    signal c167_reg3_sig     :std_logic_vector(7 downto 0) := X"00";           --    
                                                                       --registers 3 to 11 are spare 
 	  signal c167_reg4_sig     :std_logic_vector(7 downto 0) := X"00";           --spare register 4															  
 	  signal c167_reg5_sig     :std_logic_vector(7 downto 0) := X"00";           --spare register 5
@@ -559,13 +566,14 @@ is
     signal RunFm_Z1_sig       : std_logic;                             --"run formatter" delayed version for detecting rising edge
 
     --c167 bus clock and control signals                                   -                                                                    
-    signal C167_CLK_sig      :std_logic;                    --clock for those registers
-    signal data_from_cpu_sig : std_logic_vector(7 downto 0);    
-    signal data_to_cpu_sig   : std_logic_vector(7 downto 0);
+    signal C167_CLK_sig       :std_logic;                    --clock for those registers
+    signal data_from_cpu_sig  : std_logic_vector(7 downto 0);    
+    signal data_to_cpu_sig    : std_logic_vector(7 downto 0);
 --    signal C167_RD_EN_sig    :std_logic_vector(31 downto 0); --one line goes high
 --    signal C167_WR_EN_sig    :std_logic_vector(31 downto 0); --one line goes high  
-    signal C167_WE_sig       :std_logic; --write to register when low and ctrl_data is low
-    signal C167_ADDR_sig     :std_logic_vector(7 downto 0); --address for read/write 
+    signal C167_WE_sig        :std_logic; --write to register when low and ctrl_data is low
+    signal C167_ADDR_sig      :std_logic_vector(7 downto 0); --address for read/write
+    signal apply_sig          :std_logic := '0';  --for testing apply_vdif_header
     
     --signals for DAC
     signal DAC_CLK_p_sig        : std_logic;
@@ -653,6 +661,48 @@ is
     signal ditp0_sig    : std_logic;
     signal ditp1_sig    : std_logic;
     signal ditp2_sig    : std_logic; 
+    signal tgtp0_sig    : std_logic;
+    signal tgtp1_sig    : std_logic;
+    signal tgtp2_sig    : std_logic;     
+	
+    --delay control signals
+    type delay_profile is array (0 to 63) of std_logic_vector(4 downto 0);
+    signal delay_reg			: delay_profile;
+    signal int_delay_reg		: delay_profile;
+    signal sum_data_out			: std_logic_vector(63 downto 0);	
+    signal sum_data_out_b		: std_logic_vector(63 downto 0);	
+    signal sum_data_out_bb		: std_logic_vector(63 downto 0);
+    signal output_test			: std_logic;
+    signal delay_reg_address		: std_logic_vector(5 downto 0);	
+    signal int_delay_reg_address	: std_logic_vector(5 downto 0);	
+    signal rdy0                 	: std_logic;	
+    signal rdy1                 	: std_logic;	
+
+    -- integer delay adjustment signals
+    signal data_a               	: std_logic;	
+    signal data_b               	: std_logic;	
+    signal data_a_selection             : std_logic_vector(5 downto 0);
+    signal data_b_selection             : std_logic_vector(5 downto 0);
+    signal integer_delay_error          : std_logic;
+    signal integer_delay_error_reset    : std_logic;
+    signal current_int_delay		: std_logic_vector(5 downto 0);
+
+    -- System monitor	
+    signal CHANNEL_OUT			: std_logic_vector(4 downto 0);
+    signal DO_OUT			: std_logic_vector(15 downto 0);
+    signal temperature			: std_logic_vector(15 downto 0);
+    signal DRDY			    	: std_logic;
+
+    -- System monitor	
+    signal tx_dest_ip_sig      		: std_logic_vector(31 downto 0):= X"C0A8_0311";   	--Destination IP address
+    signal tx_dest_port_sig    		: std_logic_vector(15 downto 0):= X"EA60";   		--Destination port
+
+    signal To10GbeTxDataValid_sig2    	: std_logic;
+    signal To10GbeTxEOF_sig2     	: std_logic;
+    signal To10GbeTxData2		: std_logic_vector(63 downto 0);
+    signal To10GbeTxData_sig		: std_logic_vector(63 downto 0);
+    signal send_data_pattern_cnt	: std_logic_vector(31 downto 0);
+
 
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
@@ -705,6 +755,66 @@ begin
    );   
    end generate sum_data_inputs;   
    
+   
+   
+  -- IODELAYE1s for sum data
+
+     iodelay_data_inputs: for i in 0 to 63 generate
+     begin
+  	io_delay: IODELAYE1
+       	generic map (
+  	CINVCTRL_SEL => FALSE, 			-- Enable dynamic clock inversion ("TRUE"/"FALSE")
+  	DELAY_SRC => "I", 			-- Delay input ("I", "CLKIN", "DATAIN", "IO", "O")
+  	HIGH_PERFORMANCE_MODE => TRUE, 		-- Reduced jitter ("TRUE"), Reduced power ("FALSE")
+  	IDELAY_TYPE => "VAR_LOADABLE", 		-- "DEFAULT", "FIXED", "VARIABLE", or "VAR_LOADABLE"
+  	IDELAY_VALUE => 0, 			-- Input delay tap setting (0-32)
+  	ODELAY_TYPE => "FIXED", 		-- "FIXED", "VARIABLE", or "VAR_LOADABLE"
+  	ODELAY_VALUE => 0, 			-- Output delay tap setting (0-32)
+  	REFCLK_FREQUENCY => 200.0, 		-- IDELAYCTRL clock input frequency in MHz
+  	SIGNAL_PATTERN => "DATA" 		-- "DATA" or "CLOCK" input signal
+  	)
+  	port map(
+  	CNTVALUEOUT => OPEN,	 		-- 5-bit output - Counter value for monitoring purpose
+  	DATAOUT => sum_data_out(i), 		-- 1-bit output - Delayed data output
+  	C => C125, 				-- 1-bit input - Clock input
+  	CE => '0', 				-- 1-bit input - Active high enable increment/decrement function
+  	CINVCTRL => '0', 			-- 1-bit input - Dynamically inverts the Clock (C) polarity
+  	CLKIN => '0', 				-- 1-bit input - Clock Access into the IODELAY
+  	CNTVALUEIN => delay_reg(i), 		-- 5-bit input - Counter value for loadable counter application
+  	DATAIN => '0', 				-- 1-bit input - Internal delay data
+  	IDATAIN => sum_data(i), 		-- 1-bit input - Delay data input
+ 	INC => '0', 				-- 1-bit input - Increment / Decrement tap delay
+  	ODATAIN => '0', 			-- 1-bit input - Data input for the output datapath from the device
+  	RST => '1', 				-- 1-bit input - Active high, synchronous reset, resets delay chain to IDELAY_VALUE/
+						-- ODELAY_VALUE tap. If no value is specified, the default is 0.
+  	T => '1' 				-- 1-bit input - 3-state input control. Tie high for input-only or internal delay or
+						-- tie low for output only.
+ 	);
+     end generate iodelay_data_inputs;
+
+
+
+
+-- End of IODELAYE1_inst instantiation	
+
+  	idelayctrlInst0 : IDELAYCTRL
+  	port map (
+  	RDY => rdy0, 				-- 1-bit output indicates validity of the REFCLK
+  	REFCLK => C200, 			-- 1-bit reference clock input
+  	RST => '0' 				-- 1-bit reset input
+ 	);
+
+  	idelayctrlInst1 : IDELAYCTRL
+  	port map (
+  	RDY => rdy1, 				-- 1-bit output indicates validity of the REFCLK
+  	REFCLK => C200, 			-- 1-bit reference clock input
+  	RST => '0' 				-- 1-bit reset input
+  	);
+
+    c167_reg3_sig(4) <= rdy1 and rdy0;   
+   
+   
+   
     -- Output for DAC CLK
    OBUFDS_DAC_CLK : OBUFDS
      generic map (
@@ -743,7 +853,7 @@ begin
       
    data_interface_0: data_interface
    port map(
-      sum_data   => sum_data,
+      sum_data   => sum_data_out_bb,
       C125       => C125,        
       Grs        => c167_reg14_sig(3),          --control reg 0, bit 2 from C167          
       chan       => c167_reg16_sig(5 downto 0), --control reg 2, bits 5 to 0 from C167       
@@ -767,6 +877,38 @@ begin
       ditp2      => ditp2_sig 
       
    );
+   
+   
+   fdre_inputs: for i in 0 to 63 generate
+   begin
+	fdre_inputs: FDRE
+	port map (
+	Q => sum_data_out_b(i), 	-- Data output
+	C => C125,	 				-- Clock input
+	CE => '1', 					-- Clock enable input
+	R => '0', 					-- Synchronous reset input
+	D => sum_data_out(i) 		-- Data input
+	);
+   end generate fdre_inputs;
+   
+   sr_inputs: for i in 0 to 63 generate
+   begin
+	SRL16E_inst : SRL16E
+	generic map (
+	INIT => X"0000")
+	port map (
+	Q => sum_data_out_bb(i), 	-- SRL data output
+	A0 => int_delay_reg(i)(0), 	-- Select[0] input
+	A1 => int_delay_reg(i)(1), 	-- Select[1] input
+	A2 => int_delay_reg(i)(2), 	-- Select[2] input
+	A3 => int_delay_reg(i)(3), 	-- Select[3] input
+	CE => '1', 			-- Clock enable input
+	CLK => C125, 			-- Clock input
+	D => sum_data_out_b(i) 		-- SRL data input
+	);
+   end generate sr_inputs;
+
+   
    -- timing generator connection
    timing_generator_0: timing_generator
    port map(
@@ -792,7 +934,10 @@ begin
           TE_Err             => c167_reg3_sig(0),   -- needs to be added    OUT
           reset_TE           => c167_reg0_sig(1),   -- ok                   IN      
           one_PPS_PIC_adv    => PPS_PIC_adv_sig,
-          nchan              => nchan_sig
+          nchan              => nchan_sig,
+          tgtp0              => tgtp0_sig,
+          tgtp1              => tgtp1_sig,
+          tgtp2              => tgtp2_sig
    );
    
    data_formatter_0: data_formatter
@@ -818,7 +963,7 @@ begin
       Grs           => c167_reg14_sig(03),  --from C167; a 1 causes reset
       RunFM         => RunFm_sig,           --from C167;rising edge (and 1 PPS) used to start formatter and part of timing gen 
       hdr_sel_C167  => c167_reg11_w_sig(5 downto 0),  --used to select which part of header data captured at TE to transmit
-      To10GbeTxData => To10GbeTxData,           --three signals to 10 GbE module
+      To10GbeTxData => To10GbeTxData_sig,           --three signals to 10 GbE module
       To10GbeTxDataValid => To10GbeTxDataValid_sig,
       To10GbeTxEOF  => To10GbeTxEOF_sig,    
       sum_ch_demux_0=> sum_ch_demux_0_sig,  --bit 0 of demuxed data, to monitor point
@@ -1116,9 +1261,54 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
       TIME1 <= TIME1_sig; --1 ms
       
   --signals to 10 GbE module
-  To10GbeTxDataValid  <= To10GbeTxDataValid_sig;
-  To10GbeTxEOF        <= To10GbeTxEOF_sig; 
-  To10Gbe_CFIFO       <= CFIFO;
+
+TenGbe_selection : process(c167_reg0_sig(5))	--this process selects among simulated test pattern or real data produced by the analog sum.
+begin
+	if(c167_reg0_sig(5)='0') then		
+	  To10GbeTxData		<= To10GbeTxData_sig;
+	  To10GbeTxDataValid  	<= To10GbeTxDataValid_sig;
+	  To10GbeTxEOF        	<= To10GbeTxEOF_sig; 
+	  To10Gbe_CFIFO       	<= CFIFO;
+	  reset10GBE 	        <= c167_reg0_sig(6) and not(To10GbeTxDataValid_sig);	-- reset10GBE will be asserte only if To10GbeTxDataValid is '0'
+	else
+	  To10GbeTxData	        <= To10GbeTxData2;
+	  To10GbeTxDataValid    <= To10GbeTxDataValid_sig2;
+	  To10GbeTxEOF          <= To10GbeTxEOF_sig2; 
+	  To10Gbe_CFIFO         <= CFIFO;
+	  reset10GBE 	        <= c167_reg0_sig(6) and not(To10GbeTxDataValid_sig2);	-- reset10GBE will be asserte only if To10GbeTxDataValid is '0'
+	end if;
+end process TenGbe_selection;
+-------------------------
+
+send_data_pattern : process(CFIFO)
+begin
+if (rising_edge(CFIFO)) then
+
+	if send_data_pattern_cnt = X"0858_3B00" then
+		send_data_pattern_cnt <= X"0000_0000";
+	else
+		send_data_pattern_cnt <= send_data_pattern_cnt + X"0000_0001";
+	end if;
+
+	if send_data_pattern_cnt < X"0000_0400" then
+		To10GbeTxDataValid_sig2 <= '1';
+	else
+		To10GbeTxDataValid_sig2 <= '0';	
+	end if;
+
+	if send_data_pattern_cnt = X"0000_03FF" then
+		To10GbeTxEOF_sig2 <= '1';
+	else
+		To10GbeTxEOF_sig2 <= '0';	
+	end if;
+
+	To10GbeTxData2 <= X"00000000" & send_data_pattern_cnt;
+
+end if;
+end process send_data_pattern;
+
+
+-------------------------
 
 
   -- EPB register access process
@@ -1716,16 +1906,16 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
         when X"33" => data_to_cpu_sig <= c167_reg51_sig;
         when X"34" => data_to_cpu_sig <= c167_reg52_sig;
         when X"35" => data_to_cpu_sig <= c167_reg53_sig;
-        when X"36" => data_to_cpu_sig <= c167_reg54_sig;
+        when X"36" => data_to_cpu_sig <= temperature(7 downto 0);--c167_reg54_sig;
         when X"37" => data_to_cpu_sig <= c167_reg55_sig;
         when X"38" => data_to_cpu_sig <= c167_reg56_sig;
         when X"39" => data_to_cpu_sig <= c167_reg57_sig;
-        when X"3a" => data_to_cpu_sig <= c167_reg58_sig;
+        when X"3a" => data_to_cpu_sig <= temperature(15 downto 8);--c167_reg58_sig;-- 
         when X"3b" => data_to_cpu_sig <= c167_reg59_sig;
         when X"3c" => data_to_cpu_sig <= c167_reg60_sig;
         when X"3d" => data_to_cpu_sig <= c167_reg61_sig;
         when X"3e" => data_to_cpu_sig <= c167_reg62_sig;
-        when X"3f" => data_to_cpu_sig <= c167_reg63_sig;
+        when X"3f" => data_to_cpu_sig <= integer_delay_error & delay_reg_address(1 downto 0) & delay_reg(0);	-- debugging purposes
         
         when others  => data_to_cpu_sig <= (others => '0');  
     end case;       
@@ -1733,35 +1923,196 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
 
 	C167_reg_write: process(C167_CLK_sig)
 	begin
-	   if (rising_edge(C167_CLK_sig))  then
-	     if(C167_WE_sig = '0') then
-   	     case (C167_ADDR_sig) is
-            when X"00" => c167_reg0_sig   <= data_from_cpu_sig;     
-            when X"01" => c167_reg1_sig   <= data_from_cpu_sig;   
-            when X"02" => c167_reg2_sig   <= data_from_cpu_sig;             
-            when X"04" => c167_reg4_sig   <= data_from_cpu_sig;  
-            when X"0B" => c167_reg11_w_sig   <= data_from_cpu_sig;
-            when X"0D" => c167_reg13_sig  <= data_from_cpu_sig;
-            when X"0E" => c167_reg14_sig  <= data_from_cpu_sig;
-            when X"0F" => c167_reg15_sig  <= data_from_cpu_sig;
-            when X"10" => c167_reg16_sig  <= data_from_cpu_sig;
-            when X"11" => c167_reg17_sig  <= data_from_cpu_sig;
-            when X"12" => c167_reg18_sig  <= data_from_cpu_sig;
-            when X"13" => c167_reg19_sig  <= data_from_cpu_sig;
-            when X"14" => c167_reg20_sig  <= data_from_cpu_sig;
-            when X"15" => c167_reg21_sig  <= data_from_cpu_sig;
-            when X"16" => c167_reg22_sig  <= data_from_cpu_sig;
-            --the rest of the registers are read only
-            when others  => null;  
-         end case;
-       end if;
-     end if; 
+	   if (rising_edge(C167_CLK_sig))  then			-- IF level 1
+	    if(C167_WE_sig = '0') then				-- IF level 2
+	   	    case (C167_ADDR_sig) is
+			    when X"00" => c167_reg0_sig   		<= data_from_cpu_sig;     
+			    when X"01" => c167_reg1_sig   		<= data_from_cpu_sig;   
+			    when X"02" => c167_reg2_sig   		<= data_from_cpu_sig;             
+			    when X"04" => c167_reg4_sig   		<= data_from_cpu_sig;  
+			    when X"0B" => c167_reg11_w_sig   		<= data_from_cpu_sig;
+			    when X"0D" => c167_reg13_sig  		<= data_from_cpu_sig;
+			    when X"0E" => c167_reg14_sig  		<= data_from_cpu_sig;
+			    when X"0F" => c167_reg15_sig  		<= data_from_cpu_sig;
+			    when X"10" => c167_reg16_sig  		<= data_from_cpu_sig;
+			    when X"11" => c167_reg17_sig  		<= data_from_cpu_sig;
+			    when X"12" => c167_reg18_sig  		<= data_from_cpu_sig;
+			    when X"13" => c167_reg19_sig  		<= data_from_cpu_sig;
+			    when X"14" => c167_reg20_sig  		<= data_from_cpu_sig;
+			    when X"15" => c167_reg21_sig  		<= data_from_cpu_sig;
+			    when X"16" => c167_reg22_sig  		<= data_from_cpu_sig;
+			    when X"17" => delay_reg_address  		<= data_from_cpu_sig(5 downto 0);	
+			    when X"19" => int_delay_reg_address  	<= data_from_cpu_sig(5 downto 0);	
+			    when X"1B" => data_a_selection  		<= data_from_cpu_sig(5 downto 0);	
+			    when X"1C" => data_b_selection	  	<= data_from_cpu_sig(5 downto 0);	
+			    when X"1D" => integer_delay_error_reset     <= data_from_cpu_sig(0);	
+
+			    --the rest of the registers are read only
+			    when others  => null;  
+		    end case;
+	    end if;						-- END IF level 2
+ 
+                         
+     if((C167_WE_sig = '0') AND ( c167_ADDR_sig = X"18")) then	--IF level 2 
+   	    case (delay_reg_address) is
+		    when "000000" => delay_reg(0)    <= data_from_cpu_sig(4 downto 0);     
+		    when "000001" => delay_reg(1)    <= data_from_cpu_sig(4 downto 0);     
+		    when "000010" => delay_reg(2)    <= data_from_cpu_sig(4 downto 0);     
+		    when "000011" => delay_reg(3)    <= data_from_cpu_sig(4 downto 0);     
+		    when "000100" => delay_reg(4)    <= data_from_cpu_sig(4 downto 0);     
+		    when "000101" => delay_reg(5)    <= data_from_cpu_sig(4 downto 0);     
+		    when "000110" => delay_reg(6)    <= data_from_cpu_sig(4 downto 0);     
+		    when "000111" => delay_reg(7)    <= data_from_cpu_sig(4 downto 0);     
+		    when "001000" => delay_reg(8)    <= data_from_cpu_sig(4 downto 0);     
+		    when "001001" => delay_reg(9)    <= data_from_cpu_sig(4 downto 0);     
+		    when "001010" => delay_reg(10)   <= data_from_cpu_sig(4 downto 0);     
+		    when "001011" => delay_reg(11)   <= data_from_cpu_sig(4 downto 0);     
+		    when "001100" => delay_reg(12)   <= data_from_cpu_sig(4 downto 0);     
+		    when "001101" => delay_reg(13)   <= data_from_cpu_sig(4 downto 0);     
+		    when "001110" => delay_reg(14)   <= data_from_cpu_sig(4 downto 0);     
+		    when "001111" => delay_reg(15)   <= data_from_cpu_sig(4 downto 0);     
+		    when "010000" => delay_reg(16)   <= data_from_cpu_sig(4 downto 0);     
+		    when "010001" => delay_reg(17)   <= data_from_cpu_sig(4 downto 0);     
+		    when "010010" => delay_reg(18)   <= data_from_cpu_sig(4 downto 0);     
+		    when "010011" => delay_reg(19)   <= data_from_cpu_sig(4 downto 0);     
+		    when "010100" => delay_reg(20)   <= data_from_cpu_sig(4 downto 0);     
+		    when "010101" => delay_reg(21)   <= data_from_cpu_sig(4 downto 0);     
+		    when "010110" => delay_reg(22)   <= data_from_cpu_sig(4 downto 0);     
+		    when "010111" => delay_reg(23)   <= data_from_cpu_sig(4 downto 0);     
+		    when "011000" => delay_reg(24)   <= data_from_cpu_sig(4 downto 0);     
+		    when "011001" => delay_reg(25)   <= data_from_cpu_sig(4 downto 0);     
+		    when "011010" => delay_reg(26)   <= data_from_cpu_sig(4 downto 0);     
+		    when "011011" => delay_reg(27)   <= data_from_cpu_sig(4 downto 0);     
+		    when "011100" => delay_reg(28)   <= data_from_cpu_sig(4 downto 0);     
+		    when "011101" => delay_reg(29)   <= data_from_cpu_sig(4 downto 0);     
+		    when "011110" => delay_reg(30)   <= data_from_cpu_sig(4 downto 0);     
+		    when "011111" => delay_reg(31)   <= data_from_cpu_sig(4 downto 0);     
+		    when "100000" => delay_reg(32)   <= data_from_cpu_sig(4 downto 0);     
+		    when "100001" => delay_reg(33)   <= data_from_cpu_sig(4 downto 0);     
+		    when "100010" => delay_reg(34)   <= data_from_cpu_sig(4 downto 0);     
+		    when "100011" => delay_reg(35)   <= data_from_cpu_sig(4 downto 0);     
+		    when "100100" => delay_reg(36)   <= data_from_cpu_sig(4 downto 0);     
+		    when "100101" => delay_reg(37)   <= data_from_cpu_sig(4 downto 0);     
+		    when "100110" => delay_reg(38)   <= data_from_cpu_sig(4 downto 0);     
+		    when "100111" => delay_reg(39)   <= data_from_cpu_sig(4 downto 0);     
+		    when "101000" => delay_reg(40)   <= data_from_cpu_sig(4 downto 0);     
+		    when "101001" => delay_reg(41)   <= data_from_cpu_sig(4 downto 0);     
+		    when "101010" => delay_reg(42)   <= data_from_cpu_sig(4 downto 0);     
+		    when "101011" => delay_reg(43)   <= data_from_cpu_sig(4 downto 0);     
+		    when "101100" => delay_reg(44)   <= data_from_cpu_sig(4 downto 0);     
+		    when "101101" => delay_reg(45)   <= data_from_cpu_sig(4 downto 0);     
+		    when "101110" => delay_reg(46)   <= data_from_cpu_sig(4 downto 0);     
+		    when "101111" => delay_reg(47)   <= data_from_cpu_sig(4 downto 0);     
+		    when "110000" => delay_reg(48)   <= data_from_cpu_sig(4 downto 0);     
+		    when "110001" => delay_reg(49)   <= data_from_cpu_sig(4 downto 0);     
+		    when "110010" => delay_reg(50)   <= data_from_cpu_sig(4 downto 0);     
+		    when "110011" => delay_reg(51)   <= data_from_cpu_sig(4 downto 0);     
+		    when "110100" => delay_reg(52)   <= data_from_cpu_sig(4 downto 0);     
+		    when "110101" => delay_reg(53)   <= data_from_cpu_sig(4 downto 0);     
+		    when "110110" => delay_reg(54)   <= data_from_cpu_sig(4 downto 0);     
+		    when "110111" => delay_reg(55)   <= data_from_cpu_sig(4 downto 0);     
+		    when "111000" => delay_reg(56)   <= data_from_cpu_sig(4 downto 0);     
+		    when "111001" => delay_reg(57)   <= data_from_cpu_sig(4 downto 0);     
+		    when "111010" => delay_reg(58)   <= data_from_cpu_sig(4 downto 0);     
+		    when "111011" => delay_reg(59)   <= data_from_cpu_sig(4 downto 0);     
+		    when "111100" => delay_reg(60)   <= data_from_cpu_sig(4 downto 0);     
+		    when "111101" => delay_reg(61)   <= data_from_cpu_sig(4 downto 0);     
+		    when "111110" => delay_reg(62)   <= data_from_cpu_sig(4 downto 0);     
+		    when "111111" => delay_reg(63)   <= data_from_cpu_sig(4 downto 0);     
+
+		    --the rest of the registers are read only
+		    when others  => null;  
+            end case;
+     end if;							--END IF level 2
+     
+     --special case for testing apply
+     if((C167_WE_sig = '0') AND ( c167_ADDR_sig = X"0D")) then 
+      apply_sig <= '1';
+     else
+      apply_sig <= '0';
+     end if;							
+
+
+     if((C167_WE_sig = '0') AND ( c167_ADDR_sig = X"1A")) then	--IF level 2 
+   	    case (int_delay_reg_address) is
+		    when "000000" => int_delay_reg(0)    <= data_from_cpu_sig(4 downto 0);     
+		    when "000001" => int_delay_reg(1)    <= data_from_cpu_sig(4 downto 0);     
+		    when "000010" => int_delay_reg(2)    <= data_from_cpu_sig(4 downto 0);     
+		    when "000011" => int_delay_reg(3)    <= data_from_cpu_sig(4 downto 0);     
+		    when "000100" => int_delay_reg(4)    <= data_from_cpu_sig(4 downto 0);     
+		    when "000101" => int_delay_reg(5)    <= data_from_cpu_sig(4 downto 0);     
+		    when "000110" => int_delay_reg(6)    <= data_from_cpu_sig(4 downto 0);     
+		    when "000111" => int_delay_reg(7)    <= data_from_cpu_sig(4 downto 0);     
+		    when "001000" => int_delay_reg(8)    <= data_from_cpu_sig(4 downto 0);     
+		    when "001001" => int_delay_reg(9)    <= data_from_cpu_sig(4 downto 0);     
+		    when "001010" => int_delay_reg(10)   <= data_from_cpu_sig(4 downto 0);     
+		    when "001011" => int_delay_reg(11)   <= data_from_cpu_sig(4 downto 0);     
+		    when "001100" => int_delay_reg(12)   <= data_from_cpu_sig(4 downto 0);     
+		    when "001101" => int_delay_reg(13)   <= data_from_cpu_sig(4 downto 0);     
+		    when "001110" => int_delay_reg(14)   <= data_from_cpu_sig(4 downto 0);     
+		    when "001111" => int_delay_reg(15)   <= data_from_cpu_sig(4 downto 0);     
+		    when "010000" => int_delay_reg(16)   <= data_from_cpu_sig(4 downto 0);     
+		    when "010001" => int_delay_reg(17)   <= data_from_cpu_sig(4 downto 0);     
+		    when "010010" => int_delay_reg(18)   <= data_from_cpu_sig(4 downto 0);     
+		    when "010011" => int_delay_reg(19)   <= data_from_cpu_sig(4 downto 0);     
+		    when "010100" => int_delay_reg(20)   <= data_from_cpu_sig(4 downto 0);     
+		    when "010101" => int_delay_reg(21)   <= data_from_cpu_sig(4 downto 0);     
+		    when "010110" => int_delay_reg(22)   <= data_from_cpu_sig(4 downto 0);     
+		    when "010111" => int_delay_reg(23)   <= data_from_cpu_sig(4 downto 0);     
+		    when "011000" => int_delay_reg(24)   <= data_from_cpu_sig(4 downto 0);     
+		    when "011001" => int_delay_reg(25)   <= data_from_cpu_sig(4 downto 0);     
+		    when "011010" => int_delay_reg(26)   <= data_from_cpu_sig(4 downto 0);     
+		    when "011011" => int_delay_reg(27)   <= data_from_cpu_sig(4 downto 0);     
+		    when "011100" => int_delay_reg(28)   <= data_from_cpu_sig(4 downto 0);     
+		    when "011101" => int_delay_reg(29)   <= data_from_cpu_sig(4 downto 0);     
+		    when "011110" => int_delay_reg(30)   <= data_from_cpu_sig(4 downto 0);     
+		    when "011111" => int_delay_reg(31)   <= data_from_cpu_sig(4 downto 0);     
+		    when "100000" => int_delay_reg(32)   <= data_from_cpu_sig(4 downto 0);     
+		    when "100001" => int_delay_reg(33)   <= data_from_cpu_sig(4 downto 0);     
+		    when "100010" => int_delay_reg(34)   <= data_from_cpu_sig(4 downto 0);     
+		    when "100011" => int_delay_reg(35)   <= data_from_cpu_sig(4 downto 0);     
+		    when "100100" => int_delay_reg(36)   <= data_from_cpu_sig(4 downto 0);     
+		    when "100101" => int_delay_reg(37)   <= data_from_cpu_sig(4 downto 0);     
+		    when "100110" => int_delay_reg(38)   <= data_from_cpu_sig(4 downto 0);     
+		    when "100111" => int_delay_reg(39)   <= data_from_cpu_sig(4 downto 0);     
+		    when "101000" => int_delay_reg(40)   <= data_from_cpu_sig(4 downto 0);     
+		    when "101001" => int_delay_reg(41)   <= data_from_cpu_sig(4 downto 0);     
+		    when "101010" => int_delay_reg(42)   <= data_from_cpu_sig(4 downto 0);     
+		    when "101011" => int_delay_reg(43)   <= data_from_cpu_sig(4 downto 0);     
+		    when "101100" => int_delay_reg(44)   <= data_from_cpu_sig(4 downto 0);     
+		    when "101101" => int_delay_reg(45)   <= data_from_cpu_sig(4 downto 0);     
+		    when "101110" => int_delay_reg(46)   <= data_from_cpu_sig(4 downto 0);     
+		    when "101111" => int_delay_reg(47)   <= data_from_cpu_sig(4 downto 0);     
+		    when "110000" => int_delay_reg(48)   <= data_from_cpu_sig(4 downto 0);     
+		    when "110001" => int_delay_reg(49)   <= data_from_cpu_sig(4 downto 0);     
+		    when "110010" => int_delay_reg(50)   <= data_from_cpu_sig(4 downto 0);     
+		    when "110011" => int_delay_reg(51)   <= data_from_cpu_sig(4 downto 0);     
+		    when "110100" => int_delay_reg(52)   <= data_from_cpu_sig(4 downto 0);     
+		    when "110101" => int_delay_reg(53)   <= data_from_cpu_sig(4 downto 0);     
+		    when "110110" => int_delay_reg(54)   <= data_from_cpu_sig(4 downto 0);     
+		    when "110111" => int_delay_reg(55)   <= data_from_cpu_sig(4 downto 0);     
+		    when "111000" => int_delay_reg(56)   <= data_from_cpu_sig(4 downto 0);     
+		    when "111001" => int_delay_reg(57)   <= data_from_cpu_sig(4 downto 0);     
+		    when "111010" => int_delay_reg(58)   <= data_from_cpu_sig(4 downto 0);     
+		    when "111011" => int_delay_reg(59)   <= data_from_cpu_sig(4 downto 0);     
+		    when "111100" => int_delay_reg(60)   <= data_from_cpu_sig(4 downto 0);     
+		    when "111101" => int_delay_reg(61)   <= data_from_cpu_sig(4 downto 0);     
+		    when "111110" => int_delay_reg(62)   <= data_from_cpu_sig(4 downto 0);     
+		    when "111111" => int_delay_reg(63)   <= data_from_cpu_sig(4 downto 0);     
+		    --the rest of the registers are read only
+		    when others  => null;  
+            end case;
+     end if;							--END IF level 2
+
+     end if;							--END IF level 1
+
      --special case of register 12
-     if((C167_WE_sig = '0') AND ( c167_ADDR_sig = X"0C")) then 
+     if((C167_WE_sig = '0') AND ( c167_ADDR_sig = X"0C")) then 	--IF level 1
        C167_reg12_CE_sig <= '1';
      else
        C167_reg12_CE_sig <= '0';
-     end if;                                   
+      end if;							-- END IF level 1          
+
 	end process;
 	
 	-------------------------------------------------------------------------------
@@ -1800,8 +2151,12 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
             data_in(27) => sum_data(54),
             data_in(28) => sum_data(56),
             data_in(29) => sum_data(58),
-            data_in(30) => sum_data(60),
-            data_in(31) => sum_data(62),       --Sum Data LSB channel 31
+--            data_in(30) => sum_data(60),
+--            data_in(31) => sum_data(62),       --Sum Data LSB channel 31
+
+            data_in(30) => To10GbeTxDataValid_sig,	--0x1E
+            data_in(31) => To10GbeTxEOF_sig,		--0x1F
+
             data_in(32) => TE_sig,             --0x20
             data_in(33) => AUXTIME_sig,            
             data_in(34) => PPS_Maser_sig,
@@ -1827,10 +2182,13 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
             data_in(54) => TIME0_sig,
             data_in(55) => TIME1_sig,
             data_in(56) => PPS_PIC_sig,
-            data_in(57) => c167_reg14_sig(4),
+            data_in(57) => c167_reg14_sig(5),  --RunFm, address 0x39
             data_in(58) => PPS_PIC_adv_sig,
-            data_in(59) => OneMsec_pic_sig,           
-            data_in(63 downto 60) => (others => '0'),
+            data_in(59) => OneMsec_pic_sig,
+            data_in(60) => apply_sig,           
+            data_in(61) => CFIFO_Z1_sig, 
+            data_in(62) => To10GbeTxData2(0),          
+            data_in(63) => '0',
             data_out => ROACHTP(0)	     
   	     );
 	     
@@ -1839,7 +2197,7 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
   mux_rtp1 : mux64
   	     port map (
             data_sel => c167_reg2_sig(5 downto 0),
-            data_in(0)  => ditp0_sig,     --sum_data(1),        --Sum Data MSB channel 0
+            data_in(0)  => tgtp0_sig,     --sum_data(1),        --Sum Data MSB channel 0
             data_in(1)  => sum_data(3),        --Sum Data MSB channel 1
             data_in(2)  => sum_data(5),        --          .
             data_in(3)  => sum_data(7),        --          .
@@ -1896,18 +2254,20 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
             data_in(54) => h_rd_en_sig,           --header read enable, addr 0x36
             data_in(55) => d_rd_en_sig,           --data read enable, addr 0x37            
             data_in(56) => To10GbeTxData_1_sig,   --LSB of data to 10 GbE module,address 0x38
-            data_in(57) => To10GbeTxDataValid_sig,--data valid signal from formatter,address 0x39
-            data_in(58) => To10GbeTxEOF_sig,      --LSB of data to 10 GbE module,address 0x3a            
+            data_in(57) => To10GbeTxDataValid_sig2,--data valid signal from formatter,address 0x39
+            data_in(58) => To10GbeTxEOF_sig2,      --LSB of data to 10 GbE module,address 0x3a            
             data_in(59) => PPS_read_sig,          --PIC 1PPS as captured by CFIFO,address 0x3b
-            data_in(60) => ditp2_sig,                 --sum_in_bit_Z1 from data interface
-            data_in(63 downto 61) => (others => '0'),
+            data_in(60) => tgtp2_sig,                 --sum_in_bit_Z1 from data interface
+            data_in(61) => To10GbeTxDataValid_sig,
+            data_in(62) => To10GbeTxEOF_sig,
+            data_in(63) => '1',
             data_out => ROACHTP(1)            
   	     );  	
   	     
 --ROUTB(3 downto 0) test points  	          
-  ROUTB_sig(0) <= OneMsec_pic_sig;   --test_ctr(7);
+  ROUTB_sig(0) <= c167_reg14_sig(4);   --test_ctr(7);
 --  ROUTB_sig(1) <= test_ctr_fifo(7);
-  ROUTB_sig(1) <= ditp1_sig;              --PPS_PIC_sig;
+  ROUTB_sig(1) <= tgtp1_sig;              --PPS_PIC_sig;
   ROUTB_sig(2) <= test_ctr_125(7);
   ROUTB_sig(3) <= C125;  
 	
@@ -1957,6 +2317,10 @@ get_tst_freq3: process(CFIFO)
     CLKOUT1_PHASE        => 0.000,
     CLKOUT1_DUTY_CYCLE   => 0.500,
     CLKOUT1_USE_FINE_PS  => FALSE,
+    CLKOUT2_DIVIDE       => 5,
+    CLKOUT2_PHASE        => 0.000,
+    CLKOUT2_DUTY_CYCLE   => 0.500,
+    CLKOUT2_USE_FINE_PS  => FALSE,
     CLKIN1_PERIOD        => 10.000,
     REF_JITTER1          => 0.010)
   port map
@@ -1967,7 +2331,7 @@ get_tst_freq3: process(CFIFO)
     CLKOUT0B            => OPEN,
     CLKOUT1             => clkout1,
     CLKOUT1B            => OPEN,
-    CLKOUT2             => OPEN,
+    CLKOUT2             => C200_ds,
     CLKOUT2B            => OPEN,
     CLKOUT3             => OPEN,
     CLKOUT3B            => OPEN,
@@ -1999,7 +2363,7 @@ get_tst_freq3: process(CFIFO)
     CLKFBSTOPPED        => OPEN,
     PWRDWN              => '0',
     RST                 => '0');
-
+	
   -- Output buffering
   -------------------------------------
 
@@ -2008,16 +2372,21 @@ get_tst_freq3: process(CFIFO)
   port map
    (O   => CLK_OUT2,
     I   => clkout1);
+	
+  clkout3_buf : BUFG
+  port map
+   (O   => C200,
+    I   => C200_ds);	
 
 
  SYSMON_INST : SYSMON
      generic map(
-        INIT_40 => X"0000", -- config reg 0
-        INIT_41 => X"30fe", -- config reg 1
+        INIT_40 => X"1000", -- config reg 0
+        INIT_41 => X"20fe", -- config reg 1
         INIT_42 => X"0a00", -- config reg 2
         INIT_48 => X"0100", -- Sequencer channel selection
         INIT_49 => X"0000", -- Sequencer channel selection
-        INIT_4A => X"0000", -- Sequencer Average selection
+        INIT_4A => X"0100", -- Sequencer Average selection
         INIT_4B => X"0000", -- Sequencer Average selection
         INIT_4C => X"0000", -- Sequencer Bipolar selection
         INIT_4D => X"0000", -- Sequencer Bipolar selection
@@ -2026,11 +2395,11 @@ get_tst_freq3: process(CFIFO)
         INIT_50 => X"b5ed", -- Temp alarm trigger
         INIT_51 => X"5999", -- Vccint upper alarm limit
         INIT_52 => X"e000", -- Vccaux upper alarm limit
-        INIT_53 => X"a6b3",  -- Temp alarm OT upper 55deg
-        INIT_54 => X"a93a", -- Temp alarm reset 45deg
+        INIT_53 => X"a6b3",  -- Temp alarm OT upper
+        INIT_54 => X"a93a", -- Temp alarm reset
         INIT_55 => X"5111", -- Vccint lower alarm limit
         INIT_56 => X"caaa", -- Vccaux lower alarm limit
-        INIT_57 => X"ae4e",  -- Temp alarm OT reset
+        INIT_57 => X"a19b",  -- Temp alarm OT reset
         SIM_DEVICE => "VIRTEX6",
         SIM_MONITOR_FILE => "design.txt"
         )
@@ -2040,7 +2409,7 @@ port map (
         CONVSTCLK           => '0',
         DADDR(6 downto 0)   => "0000000",
         DCLK                => CLK_OUT2,
-        DEN                 => '0',
+        DEN                 => '1',
         DI(15 downto 0)     => "0000000000000000",
         DWE                 => '0',
         RESET               => '0',
@@ -2048,18 +2417,25 @@ port map (
         VAUXP(15 downto 0)  => "0000000000000000",
         ALM                 => open,
         BUSY                => open,
-        CHANNEL             => open,
-        DO                  => open,
-        DRDY                => open,
+        CHANNEL             => CHANNEL_OUT(4 downto 0),
+        DO                  => DO_OUT(15 downto 0),
+        DRDY                => DRDY,
         EOC                 => open,
         EOS                 => open,
         JTAGBUSY            => open,
         JTAGLOCKED          => open,
         JTAGMODIFIED        => open,
-        OT                  => c167_reg3_sig(2),
+        OT                  => c167_reg3_sig(2),  --1 = error
         VN                  => '0',
         VP                  => '0'
          );
+
+process(DRDY)
+begin
+	if(DRDY='1' and CHANNEL_OUT="00000") then
+		temperature <= DO_OUT;
+	end if;
+end process;
 
 -- FRAME_ECC_VIRTEX6: Configuration Frame Error Correction
 -- Virtex-6
@@ -2074,7 +2450,7 @@ FRAME_RBT_IN_FILENAME => "NONE" -- This file is output by the ICAP_VIRTEX6 model
 -- conditions.
 )
 port map (
-CRCERROR => c167_reg3_sig(3), -- 1-bit output: Output indicating a CRC error
+CRCERROR => c167_reg3_sig(3), -- 1-bit output: Output indicating a CRC error.  High = error
 ECCERROR => OPEN, -- 1-bit output: Output indicating an ECC error
 ECCERRORSINGLE => OPEN, -- 1-bit output: Output Indicating single-bit Frame ECC error detected.
 FAR => OPEN, -- 24-bit output: Frame Address Register Value output
@@ -2085,6 +2461,166 @@ SYNDROMEVALID => OPEN, -- 1-bit output: Frame ECC output indicating the SYNDROME
 SYNWORD => OPEN -- 7-bit output: Word output in the frame where an ECC error has been
 -- detected
 );
+
+mux_data_0: mux64
+  	     port map (
+            data_sel    => data_a_selection,
+            data_in(0)  => sum_data_out_bb(0), 
+            data_in(1)  => sum_data_out_bb(1),        
+            data_in(2)  => sum_data_out_bb(2),        
+            data_in(3)  => sum_data_out_bb(3),        
+            data_in(4)  => sum_data_out_bb(4),        
+            data_in(5)  => sum_data_out_bb(5),
+            data_in(6)  => sum_data_out_bb(6),
+            data_in(7)  => sum_data_out_bb(7),
+            data_in(8)  => sum_data_out_bb(8),
+            data_in(9)  => sum_data_out_bb(9),
+            data_in(10) => sum_data_out_bb(10),
+            data_in(11) => sum_data_out_bb(11),
+            data_in(12) => sum_data_out_bb(12),
+            data_in(13) => sum_data_out_bb(13),
+            data_in(14) => sum_data_out_bb(14),
+            data_in(15) => sum_data_out_bb(15),
+            data_in(16) => sum_data_out_bb(16),
+            data_in(17) => sum_data_out_bb(17),
+            data_in(18) => sum_data_out_bb(18),
+            data_in(19) => sum_data_out_bb(19),
+            data_in(20) => sum_data_out_bb(20),
+            data_in(21) => sum_data_out_bb(21),
+            data_in(22) => sum_data_out_bb(22),
+            data_in(23) => sum_data_out_bb(23),
+            data_in(24) => sum_data_out_bb(24),
+            data_in(25) => sum_data_out_bb(25),
+            data_in(26) => sum_data_out_bb(26),
+            data_in(27) => sum_data_out_bb(27),
+            data_in(28) => sum_data_out_bb(28),
+            data_in(29) => sum_data_out_bb(29),
+            data_in(30) => sum_data_out_bb(30),
+            data_in(31) => sum_data_out_bb(31),
+            data_in(32) => sum_data_out_bb(32),
+            data_in(33) => sum_data_out_bb(33),
+            data_in(34) => sum_data_out_bb(34),
+            data_in(35) => sum_data_out_bb(35),
+            data_in(36) => sum_data_out_bb(36),
+            data_in(37) => sum_data_out_bb(37),
+            data_in(38) => sum_data_out_bb(38),
+            data_in(39) => sum_data_out_bb(39),
+            data_in(40) => sum_data_out_bb(40),  
+            data_in(41) => sum_data_out_bb(41),
+            data_in(42) => sum_data_out_bb(42),
+            data_in(43) => sum_data_out_bb(43),
+            data_in(44) => sum_data_out_bb(44),
+            data_in(45) => sum_data_out_bb(45),
+            data_in(46) => sum_data_out_bb(46),
+            data_in(47) => sum_data_out_bb(47),
+            data_in(48) => sum_data_out_bb(48),
+            data_in(49) => sum_data_out_bb(49),
+            data_in(50) => sum_data_out_bb(50),
+            data_in(51) => sum_data_out_bb(51),
+            data_in(52) => sum_data_out_bb(52),
+            data_in(53) => sum_data_out_bb(53),
+            data_in(54) => sum_data_out_bb(54),
+            data_in(55) => sum_data_out_bb(55),
+            data_in(56) => sum_data_out_bb(56),
+            data_in(57) => sum_data_out_bb(57),
+            data_in(58) => sum_data_out_bb(58),
+            data_in(59) => sum_data_out_bb(59),
+            data_in(60) => sum_data_out_bb(60),
+            data_in(61) => sum_data_out_bb(61),
+            data_in(62) => sum_data_out_bb(62),
+            data_in(63) => sum_data_out_bb(63),
+            data_out => data_a            
+  	     );  
+
+
+mux_data_1: mux64
+  	     port map (
+            data_sel    => data_b_selection,
+            data_in(0)  => sum_data_out_bb(0), 
+            data_in(1)  => sum_data_out_bb(1),        
+            data_in(2)  => sum_data_out_bb(2),        
+            data_in(3)  => sum_data_out_bb(3),        
+            data_in(4)  => sum_data_out_bb(4),        
+            data_in(5)  => sum_data_out_bb(5),
+            data_in(6)  => sum_data_out_bb(6),
+            data_in(7)  => sum_data_out_bb(7),
+            data_in(8)  => sum_data_out_bb(8),
+            data_in(9)  => sum_data_out_bb(9),
+            data_in(10) => sum_data_out_bb(10),
+            data_in(11) => sum_data_out_bb(11),
+            data_in(12) => sum_data_out_bb(12),
+            data_in(13) => sum_data_out_bb(13),
+            data_in(14) => sum_data_out_bb(14),
+            data_in(15) => sum_data_out_bb(15),
+            data_in(16) => sum_data_out_bb(16),
+            data_in(17) => sum_data_out_bb(17),
+            data_in(18) => sum_data_out_bb(18),
+            data_in(19) => sum_data_out_bb(19),
+            data_in(20) => sum_data_out_bb(20),
+            data_in(21) => sum_data_out_bb(21),
+            data_in(22) => sum_data_out_bb(22),
+            data_in(23) => sum_data_out_bb(23),
+            data_in(24) => sum_data_out_bb(24),
+            data_in(25) => sum_data_out_bb(25),
+            data_in(26) => sum_data_out_bb(26),
+            data_in(27) => sum_data_out_bb(27),
+            data_in(28) => sum_data_out_bb(28),
+            data_in(29) => sum_data_out_bb(29),
+            data_in(30) => sum_data_out_bb(30),
+            data_in(31) => sum_data_out_bb(31),
+            data_in(32) => sum_data_out_bb(32),
+            data_in(33) => sum_data_out_bb(33),
+            data_in(34) => sum_data_out_bb(34),
+            data_in(35) => sum_data_out_bb(35),
+            data_in(36) => sum_data_out_bb(36),
+            data_in(37) => sum_data_out_bb(37),
+            data_in(38) => sum_data_out_bb(38),
+            data_in(39) => sum_data_out_bb(39),
+            data_in(40) => sum_data_out_bb(40),  
+            data_in(41) => sum_data_out_bb(41),
+            data_in(42) => sum_data_out_bb(42),
+            data_in(43) => sum_data_out_bb(43),
+            data_in(44) => sum_data_out_bb(44),
+            data_in(45) => sum_data_out_bb(45),
+            data_in(46) => sum_data_out_bb(46),
+            data_in(47) => sum_data_out_bb(47),
+            data_in(48) => sum_data_out_bb(48),
+            data_in(49) => sum_data_out_bb(49),
+            data_in(50) => sum_data_out_bb(50),
+            data_in(51) => sum_data_out_bb(51),
+            data_in(52) => sum_data_out_bb(52),
+            data_in(53) => sum_data_out_bb(53),
+            data_in(54) => sum_data_out_bb(54),
+            data_in(55) => sum_data_out_bb(55),
+            data_in(56) => sum_data_out_bb(56),
+            data_in(57) => sum_data_out_bb(57),
+            data_in(58) => sum_data_out_bb(58),
+            data_in(59) => sum_data_out_bb(59),
+            data_in(60) => sum_data_out_bb(60),
+            data_in(61) => sum_data_out_bb(61),
+            data_in(62) => sum_data_out_bb(62),
+            data_in(63) => sum_data_out_bb(63),
+            data_out => data_b            
+  	     );  
+
+test_integer_delay: process(C125) is
+	variable state: std_logic :='0';
+	begin
+	  if(rising_edge(C125)) then
+	     if(data_a=data_b and state='0') then
+		integer_delay_error <= '0';
+             else 
+		integer_delay_error <= '1';
+		state := '1';
+	     end if;
+
+	     if(integer_delay_error_reset='1') then
+		state := '0';	
+		integer_delay_error <= '0';	
+	     end if;
+
+	  end if;
+	end process;
 
 
 end architecture vdif_arch;
