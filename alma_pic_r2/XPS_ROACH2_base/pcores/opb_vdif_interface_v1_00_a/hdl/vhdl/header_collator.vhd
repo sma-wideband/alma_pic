@@ -93,11 +93,11 @@ architecture arch of header_collator is
     --word 6 and 7 are a repeat of the PSN
     
     --form 64-bit words from 32-bit words
-    lWord0   <= PSN;    
-    lWord1   <= word1 & word0;
-    lWord2   <= word3 & word2;
-    lWord3   <= statusWord & word4;
-    lWord4   <= PSN;
+    lWord0   <= PSN(31 downto 0) & PSN(63 downto 32);    
+    lWord1   <= word0 & word1;
+    lWord2   <= word2 & word3;
+    lWord3   <= word4 & statusWord;
+    lWord4   <= PSN(31 downto 0) & PSN(63 downto 32);    
     
     mux: process(Hdr_sel, lWord0, lWord1, lWord2, lWord3, lWord4)
     begin
