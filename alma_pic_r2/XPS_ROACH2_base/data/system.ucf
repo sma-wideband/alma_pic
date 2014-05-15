@@ -374,6 +374,27 @@ NET "mgt_gpio<11>"       LOC = K19 | IOSTANDARD = "LVCMOS15";
 
 ## MGT Mezzanine card transceivers
 #
+
+NET "mgt_rx_n<0>"        LOC = AW6;
+NET "mgt_rx_n<1>"        LOC = AY8;
+NET "mgt_rx_n<2>"        LOC = BA6;
+NET "mgt_rx_n<3>"        LOC = BB8;
+#
+NET "mgt_rx_p<0>"        LOC = AW5;
+NET "mgt_rx_p<1>"        LOC = AY7;
+NET "mgt_rx_p<2>"        LOC = BA5;
+NET "mgt_rx_p<3>"        LOC = BB7;
+#
+NET "mgt_tx_n<0>"        LOC = AW2;
+NET "mgt_tx_n<1>"        LOC = AY4;
+NET "mgt_tx_n<2>"        LOC = BA2;
+NET "mgt_tx_n<3>"        LOC = BB4;
+
+NET "mgt_tx_p<0>"        LOC = AW1;
+NET "mgt_tx_p<1>"        LOC = AY3;
+NET "mgt_tx_p<2>"        LOC = BA1;
+NET "mgt_tx_p<3>"        LOC = BB3;
+
 NET "mgt_rx_n<24>"       LOC = J6;
 NET "mgt_rx_n<25>"       LOC = L6;
 NET "mgt_rx_n<26>"       LOC = N6;
@@ -442,6 +463,9 @@ NET "vdif_routb<0>"          LOC = W37    | IOSTANDARD = "LVCMOS25";
 NET "vdif_routb<1>"          LOC = Y37    | IOSTANDARD = "LVCMOS25";
 NET "vdif_routb<2>"          LOC = AA32   | IOSTANDARD = "LVCMOS25";
 NET "vdif_routb<3>"          LOC = Y32    | IOSTANDARD = "LVCMOS25";
+
+NET "vdif_routb<3>"          TIG;
+
 
 #
 NET "vdif_uCLK0"     CLOCK_DEDICATED_ROUTE = FALSE;  # need this to avoid error since M27 is not a clock pin
@@ -623,8 +647,8 @@ NET "vdif_sum_data_n<63>" LOC = "Y33";
 
 
 
-
-
+INST "vdif_inst/vdif_inst/idelayctrlInst0" LOC = "IDELAYCTRL_X0Y6"; # Bank # 16
+INST "vdif_inst/vdif_inst/idelayctrlInst1" LOC = "IDELAYCTRL_X0Y7"; # Bank # 17
 
 
 
