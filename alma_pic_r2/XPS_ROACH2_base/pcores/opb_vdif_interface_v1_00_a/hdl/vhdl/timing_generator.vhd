@@ -46,7 +46,10 @@ port(
    TE_Err          		: out std_logic;
    reset_te        		: in  std_logic;														-- high resets TE_Err
    one_PPS_PIC_adv    : out std_logic;		
-   nchan              : in std_logic_vector(4 downto 0)    --log base 2 of number of channels
+   nchan              : in std_logic_vector(4 downto 0);    --log base 2 of number of channels
+   tgtp0              : out std_logic;  --general purpose test points
+   tgtp1              : out std_logic;
+   tgtp2              : out std_logic         
 );
 end timing_generator;
 
@@ -79,7 +82,10 @@ component int_gen
      OneMsec_pic  : out std_logic;   -- high for one clock
      TIME1        : out std_logic;   -- 1 msec interrupt for c167 microprocessor		   
      TIME0        : out std_logic;   -- 48 msec interrupt for c167 microprocessor
-     TE_err       : out std_logic    -- when = 1 indicates TE error 
+     TE_err       : out std_logic;   -- when = 1 indicates TE error 
+     igtp0        : out std_logic;
+     igtp1        : out std_logic;
+     igtp2        : out std_logic
 
    );
 end component;
@@ -126,6 +132,9 @@ signal nchan_sig            : std_logic_vector(4 downto 0);
 signal TE_pic_sig           : std_logic;
 signal OneMsec_pic_sig      : std_logic;
 signal dummy                : std_logic_vector(1 downto 0);
+signal tgtp0_sig            : std_logic;
+signal tgtp1_sig            : std_logic;
+signal tgtp2_sig            : std_logic;
 
 
 begin
@@ -154,7 +163,10 @@ begin
 			OneMsec_pic => OneMsec_pic_sig,  --high one clock
 			TIME1       => TIME1,          -- output, 48 msec interrupt for c167 microprocessor, connected to TIME0
 			TIME0       => TIME0,         -- output, 1 msec interrupt for c167 microprocessor, connected to TIME1
-			TE_err      => TE_Err       -- output,when = 1 indicates TE error, connected to TE_Err
+			TE_err      => TE_Err,       -- output,when = 1 indicates TE error, connected to TE_Err
+			igtp0       => tgtp0_sig,
+			igtp1       => tgtp0_sig,
+			igtp2       => tgtp0_sig
     );
 	
 	frame_gen_0: frame_gen
