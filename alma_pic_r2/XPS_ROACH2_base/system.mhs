@@ -72,14 +72,19 @@
  PORT mgt_rx_p = mgt_rx_p, DIR = I, VEC = [8*4-1:0]
  PORT mgt_tx_n = mgt_tx_n, DIR = O, VEC = [8*4-1:0]
  PORT mgt_tx_p = mgt_tx_p, DIR = O, VEC = [8*4-1:0]
+ PORT mgt_gpio = mgt_gpio, VEC = [11:0], DIR = IO
 
 
+# PORT alma_pic_r2_ten_Gbe_v2_tx_end_of_frame = alma_pic_r2_ten_Gbe_v2_tx_end_of_frame
+# PORT alma_pic_r2_ten_Gbe_v2_tx_valid = alma_pic_r2_ten_Gbe_v2_tx_valid
 BEGIN xaui_infrastructure
  PARAMETER INSTANCE = xaui_infrastructure_inst
  PARAMETER HW_VER = 1.00.a
  PARAMETER ENABLE7 = 1
  PARAMETER TX_LANE_STEER7 = 1
  PARAMETER RX_INVERT7 = 0
+ BUS_INTERFACE XAUI_SYS_7 = xaui_sys7
+ BUS_INTERFACE PHY_CONF_7 = phy_conf7
 # BUS_INTERFACE XAUI_SYS_0 = xaui_sys0
 # BUS_INTERFACE PHY_CONF_0 = phy_conf0
  PORT xaui_refclk_n = xaui_refclk_n
@@ -90,8 +95,6 @@ BEGIN xaui_infrastructure
  PORT mgt_tx_p = mgt_tx_p
  PORT reset = sys_reset
  PORT xaui_clk = xaui_clk
- BUS_INTERFACE XAUI_SYS_7 = xaui_sys7
- BUS_INTERFACE PHY_CONF_7 = phy_conf7
 END
 
 BEGIN roach_infrastructure
@@ -200,15 +203,14 @@ BEGIN sys_block
 END
 
 BEGIN sfp_mdio_controller
- PARAMETER HW_VER = 1.00.a 
+ PARAMETER HW_VER = 1.00.a
  PARAMETER INSTANCE = sfp_mdio_controller_inst
- PARAMETER C_BASEADDR = 0x00060000  
- PARAMETER C_HIGHADDR = 0x0006FFFF 
- BUS_INTERFACE SOPB = opb0  
- PORT OPB_Clk = epb_clk  
+ PARAMETER C_BASEADDR = 0x00060000
+ PARAMETER C_HIGHADDR = 0x0006FFFF
+ BUS_INTERFACE SOPB = opb0
+ PORT OPB_Clk = epb_clk
  PORT mgt_gpio = mgt_gpio
-END 
-PORT mgt_gpio = mgt_gpio, VEC = [11:0], DIR = IO
+END
 
 # ALMA PIC interface
 BEGIN opb_vdif_interface
@@ -251,9 +253,8 @@ BEGIN opb_vdif_interface
 # PORT DataRdy = 0b0000
 # PORT TimeCode = 0x00000000
 # PORT dataIn = 0x0000000000000000
- PORT To10GbeTxData = alma_pic_r2_ten_GbE_v2_tx_data
+# PORT To10GbeTxData = alma_pic_r2_ten_GbE_v2_tx_data
  PORT To10GbeTxDataValid = alma_pic_r2_ten_GbE_v2_tx_valid
-# PORT To10GbeTxEOF = alma_pic_r1_ten_GbE_tx_end_of_frame
  PORT To10GbeTxEOF = alma_pic_r2_ten_Gbe_v2_tx_end_of_frame
  PORT To10Gbe_CFIFO = alma_pic_r2_ten_GbE_v2_CFIFO
  PORT test_port_out = alma_pic_r2_to_PPC_0_user_data_in
@@ -265,6 +266,8 @@ BEGIN opb_vdif_interface
  PORT DAC_CLK_n = vdif_DAC_CLK_n
  PORT DAC_IN_A = vdif_DAC_IN_A
  PORT DAC_IN_B = vdif_DAC_IN_B
+ PORT reset10GBE = reset10GBE
+ PORT To10GbeTxData = vdif_inst_To10GbeTxData
 END
 
 # PORT DAC_IN_A0 = vdif_DAC_IN_A0
@@ -278,8 +281,8 @@ BEGIN alma_pic_r2
 # PORT alma_pic_r2_frm_PPC_0_user_data_out = alma_pic_r2_frm_PPC_0_user_data_out
 # PORT alma_pic_r2_frm_ppc_1_user_data_out = alma_pic_r2_frm_ppc_1_user_data_out
  PORT alma_pic_r2_ten_Gbe_v2_led_rx = alma_pic_r2_ten_Gbe_v2_led_rx
- PORT alma_pic_r2_ten_Gbe_v2_led_tx = alma_pic_r2_ten_Gbe_v2_led_tx
- PORT alma_pic_r2_ten_Gbe_v2_led_up = alma_pic_r2_ten_Gbe_v2_led_up
+# PORT alma_pic_r2_ten_Gbe_v2_led_tx = alma_pic_r2_ten_Gbe_v2_led_tx
+# PORT alma_pic_r2_ten_Gbe_v2_led_up = alma_pic_r2_ten_Gbe_v2_led_up
  PORT alma_pic_r2_ten_Gbe_v2_rx_bad_frame = alma_pic_r2_ten_Gbe_v2_rx_bad_frame
  PORT alma_pic_r2_ten_Gbe_v2_rx_data = alma_pic_r2_ten_Gbe_v2_rx_data
  PORT alma_pic_r2_ten_Gbe_v2_rx_end_of_frame = alma_pic_r2_ten_Gbe_v2_rx_end_of_frame
@@ -292,13 +295,13 @@ BEGIN alma_pic_r2
  PORT alma_pic_r2_ten_Gbe_v2_rst = alma_pic_r2_ten_Gbe_v2_rst
  PORT alma_pic_r2_ten_Gbe_v2_rx_ack = alma_pic_r2_ten_Gbe_v2_rx_ack
  PORT alma_pic_r2_ten_Gbe_v2_rx_overrun_ack = alma_pic_r2_ten_Gbe_v2_rx_overrun_ack
-# PORT alma_pic_r2_ten_Gbe_v2_tx_data = alma_pic_r2_ten_Gbe_v2_tx_data
+ PORT alma_pic_r2_ten_Gbe_v2_tx_data = alma_pic_r2_ten_Gbe_v2_tx_data
  PORT alma_pic_r2_ten_Gbe_v2_tx_dest_ip = alma_pic_r2_ten_Gbe_v2_tx_dest_ip
  PORT alma_pic_r2_ten_Gbe_v2_tx_dest_port = alma_pic_r2_ten_Gbe_v2_tx_dest_port
+ PORT alma_pic_r2_ten_Gbe_v2_tx_valid = alma_pic_r2_XSG_core_config_alma_pic_r2_ten_Gbe_v2_tx_valid
+ PORT alma_pic_r2_ten_Gbe_v2_tx_end_of_frame = alma_pic_r2_XSG_core_config_alma_pic_r2_ten_Gbe_v2_tx_end_of_frame
 END
 
-# PORT alma_pic_r2_ten_Gbe_v2_tx_end_of_frame = alma_pic_r2_ten_Gbe_v2_tx_end_of_frame
-# PORT alma_pic_r2_ten_Gbe_v2_tx_valid = alma_pic_r2_ten_Gbe_v2_tx_valid
 # ###########################
 # Simulink interfaces      #
 # ###########################
@@ -331,9 +334,9 @@ END
 BEGIN kat_ten_gb_eth
  PARAMETER INSTANCE = alma_pic_r2_ten_Gbe_v2
  PARAMETER HW_VER = 1.00.a
- PARAMETER FABRIC_MAC = 0x123456780000
+ PARAMETER FABRIC_MAC = 0x123456789ABC
  PARAMETER FABRIC_IP = 0xC0A80310
- PARAMETER FABRIC_PORT = 0x2710
+ PARAMETER FABRIC_PORT = 0xEA60
  PARAMETER FABRIC_GATEWAY = 0x1
  PARAMETER FABRIC_ENABLE = 1
  PARAMETER LARGE_PACKETS = 1
@@ -352,8 +355,9 @@ BEGIN kat_ten_gb_eth
  BUS_INTERFACE XGMII = xgmii7
  PORT OPB_Clk = epb_clk
  PORT led_rx = alma_pic_r2_ten_Gbe_v2_led_rx
- PORT led_tx = alma_pic_r2_ten_Gbe_v2_led_tx
- PORT led_up = alma_pic_r2_ten_Gbe_v2_led_up
+# PORT led_tx = alma_pic_r2_ten_Gbe_v2_led_tx
+# PORT led_up = alma_pic_r2_ten_Gbe_v2_led_up
+ PORT led_up = 1
  PORT rx_bad_frame = alma_pic_r2_ten_Gbe_v2_rx_bad_frame
  PORT rx_data = alma_pic_r2_ten_Gbe_v2_rx_data
  PORT rx_end_of_frame = alma_pic_r2_ten_Gbe_v2_rx_end_of_frame
@@ -363,15 +367,18 @@ BEGIN kat_ten_gb_eth
  PORT rx_valid = alma_pic_r2_ten_Gbe_v2_rx_valid
  PORT tx_afull = alma_pic_r2_ten_Gbe_v2_tx_afull
  PORT tx_overflow = alma_pic_r2_ten_Gbe_v2_tx_overflow
- PORT rst = alma_pic_r2_ten_Gbe_v2_rst
+# PORT rst = alma_pic_r2_ten_Gbe_v2_rst
+ PORT rst = reset10GBE
  PORT rx_ack = alma_pic_r2_ten_Gbe_v2_rx_ack
  PORT rx_overrun_ack = alma_pic_r2_ten_Gbe_v2_rx_overrun_ack
- PORT tx_data = alma_pic_r2_ten_Gbe_v2_tx_data
+ PORT tx_data = vdif_inst_To10GbeTxData
  PORT tx_dest_ip = 0xC0A80311
-# PORT tx_dest_port = alma_pic_r2_ten_Gbe_v2_tx_dest_port
+# PORT tx_dest_ip = alma_pic_r2_ten_Gbe_v2_tx_dest_ip
  PORT tx_dest_port = 0xEA60
+# PORT tx_dest_port = alma_pic_r2_ten_Gbe_v2_tx_dest_port
  PORT tx_end_of_frame = alma_pic_r2_ten_Gbe_v2_tx_end_of_frame
- PORT tx_valid = alma_pic_r2_ten_Gbe_v2_tx_valid
+ PORT tx_valid = alma_pic_r2_ten_GbE_v2_tx_valid
+# PORT clk = sys_clk
  PORT clk = alma_pic_r2_ten_GbE_v2_CFIFO
  PORT xaui_clk = xaui_clk
  PORT xaui_reset = sys_reset
