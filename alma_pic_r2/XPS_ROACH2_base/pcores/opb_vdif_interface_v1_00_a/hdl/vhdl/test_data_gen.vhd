@@ -7,6 +7,7 @@ use IEEE.STD_LOGIC_UNSIGNED.ALL;
 -------------------------------------------------------
 
 -- This entity produces test signals that can be substituted for real signals
+-- $Id: test_data_gen.vhd,v 1.4 2014/06/11 19:40:59 rlacasse Exp $
 
 entity test_data_gen is
    port	(
@@ -30,7 +31,7 @@ entity test_data_gen is
 end test_data_gen;
 
 architecture comportamental of test_data_gen is
-signal counter_pattern 	: std_logic_vector(31 downto 0);  		--32 bits counter
+signal counter_pattern 	: std_logic_vector(63 downto 0);  					--64 bits counter
 signal prg_pattern 	: std_logic_vector(34 downto 0);  					--35 bits prg
 signal test_prg_init	: std_logic := '0';
 
@@ -57,14 +58,14 @@ begin
 	process(C125,td_sel)
 	begin
 	  if(Grs = '1') then
-	    counter_pattern <= X"0000_0000";
+	    counter_pattern <= X"0000_0000_0000_0000";
 	    test_prg_init   <= '1';
 		elsif C125='1' and C125'event then
-		 	counter_pattern <= counter_pattern + "10";
+		 	counter_pattern <= counter_pattern + "1";
 			case td_sel is   -- td_out as a function of td_sel bits
-				when "010" => td_out <= X"0000_0000_0000_0000";				-- all zeroes
-				when "001" => td_out <= (counter_pattern + 1) & counter_pattern;	-- 001 counter pattern
-				when "000" => td_out <= prg_pattern(28 downto 0) & prg_pattern(34 downto 0); -- 000 Pseudo Random Number Generator
+				when "010" => td_out <= X"0000_0000_0000_0000";							-- all zeroes
+				when "001" => td_out <= counter_pattern;							-- 001 counter pattern
+				when "000" => td_out <= prg_pattern(28 downto 0) & prg_pattern(34 downto 0); 			-- 000 Pseudo Random Number Generator
 				when others => td_out <= "ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ";
 			end case;
 			test_prg_init <= Grs or frm_sync;
