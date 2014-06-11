@@ -7,7 +7,7 @@ use work.rdbe_pkg.all;
 Library UNISIM;
 use UNISIM.vcomponents.all;
 
--- # $Id: opb_vdif_interface.vhd,v 1.13 2014/05/12 12:46:32 asaez Exp $
+-- # $Id: opb_vdif_interface.vhd,v 1.14 2014/06/11 19:40:02 rlacasse Exp $
 
 entity opb_vdif_interface is
   generic ( 
@@ -560,11 +560,6 @@ is
     signal td_sel_sig         :std_logic_vector(2 downto 0) := "000";  --ctrl bits derived from reg 14
     signal data_sel_sig       :std_logic:= '0';                        --ctrl bits derived from reg 14
     
-    signal RunFm_sig          : std_logic;                             --"run formatter" derived from c167_reg14_sig(5)
-    signal RunFm_a1_sig       : std_logic;                             --"run formatter" advanced version for syncing to clock
-    signal RunFm_a2_sig       : std_logic;                             --"run formatter" advanced version for syncing to clock 
-    signal RunFm_Z1_sig       : std_logic;                             --"run formatter" delayed version for detecting rising edge
-
     --c167 bus clock and control signals                                   -                                                                    
     signal C167_CLK_sig       :std_logic;                    --clock for those registers
     signal data_from_cpu_sig  : std_logic_vector(7 downto 0);    
@@ -574,6 +569,14 @@ is
     signal C167_WE_sig        :std_logic; --write to register when low and ctrl_data is low
     signal C167_ADDR_sig      :std_logic_vector(7 downto 0); --address for read/write
     signal apply_sig          :std_logic := '0';  --for testing apply_vdif_header
+    signal RunTG_ctrl_sig     :std_logic := '0';  --for sync'ing to the 1PPS
+    signal RunTG_ctrl2_sig    :std_logic := '0';  --for sync'ing to the 1PPS
+    signal RunTG_ctrl3_sig    :std_logic := '0';  --for sync'ing to the 1PPS    
+    signal RunTG_sig     :std_logic := '0';  --for sync'ing to the 1PPS   
+    signal RunFm_sig          : std_logic;                             --"run formatter" derived from c167_reg14_sig(5) sync'd to clock
+    signal RunFm_ctrl_sig     : std_logic;                             --"run formatter" derived from c167_reg14_sig(5)       
+    signal RunFm_ctrl2_sig     : std_logic;                             --"run formatter" derived from c167_reg14_sig(5)       
+    signal RunFm_ctrl3_sig     : std_logic;                             --"run formatter" derived from c167_reg14_sig(5)       
     
     --signals for DAC
     signal DAC_CLK_p_sig        : std_logic;
@@ -587,6 +590,7 @@ is
     signal PPS_PIC_sig          :std_logic := '0'; --FPGA-derived 1-PPS based on TE and command from CCC
     signal PPS_PIC_p_sig        :std_logic ;       --FPGA-derived 1-PPS based on TE and command from CCC buffer output
     signal PPS_PIC_n_sig        :std_logic ;       --FPGA-derived 1-PPS based on TE and command from CCC buffer output
+    signal TE_sys_sig           :std_logic := '0'; --for output of differential buffer
     signal TE_sig               :std_logic := '0';
     signal AUXTIME_sig          :std_logic := '0';    
     signal TIME0_sig            :std_logic := '0';
@@ -693,7 +697,7 @@ is
     signal temperature			: std_logic_vector(15 downto 0);
     signal DRDY			    	: std_logic;
 
-    -- System monitor	
+    -- Port and IP addresses	
     signal tx_dest_ip_sig      		: std_logic_vector(31 downto 0):= X"C0A8_0311";   	--Destination IP address
     signal tx_dest_port_sig    		: std_logic_vector(15 downto 0):= X"EA60";   		--Destination port
 
@@ -957,7 +961,7 @@ begin
       CFIFO         => CFIFO,           --output rate clock ~143 MHz
       C125          => C125,            --correlator clock, 125 MHz
       FrameSync     => FrameSync_sig,   --frame sync pulse from timing gen 
-      TE_PIC        => TIME1_sig,       --TE pulse from timing gen
+      TE_PIC        => TIME0_sig,       --TE signal from timing gen; rising edge is detected by formatter
       PPS_PIC_Adv   => PPS_PIC_Adv_sig, --1 PPS from timing gen, 1 clock early
       PPS_PIC       => PPS_PIC_sig,     --1PPS from timing gen
       Grs           => c167_reg14_sig(03),  --from C167; a 1 causes reset
@@ -1002,7 +1006,7 @@ begin
       IOSTANDARD => "DEFAULT")
       
    port map (
-      O => TE_sig, -- TE buffer output
+      O => TE_sys_sig, -- TE buffer output
       I => TE_p, -- Diff_p clock buffer input (connect directly to top-level port)
       IB => TE_n -- Diff_n clock buffer input (connect directly to top-level port)
    );  
@@ -1202,6 +1206,8 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
   DAC_IN_B_sig <= test_ctr(7 downto 4); 
   
    --C167-related mappings
+       RunTG_ctrl_sig    <= c167_reg14_sig(4);
+       RunFm_ctrl_sig    <= c167_reg14_sig(5);       
        --because of conflicts between the FPGA requirements and ICD with Computing,
        --the DOUT bits of C167 control word must be mapped to td_sel and data_sel as follows
        td_sel_sig(2)     <= ( NOT c167_reg14_sig(7) ) AND ( NOT c167_reg14_sig(6) );
@@ -1253,8 +1259,7 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
        c167_reg59_sig <= FrameNum_sig(7 downto 0);     
        c167_reg60_sig <= SFRE_sig(7 downto 0);
        c167_reg61_sig <= Maser_Offset_sig(7 downto 0);
-       c167_reg62_sig <= GPS_Offset_sig(7 downto 0);  
-       RunFm_sig   <= c167_reg14_sig(5);  
+       c167_reg62_sig <= GPS_Offset_sig(7 downto 0);   
 
       --C167 interupt signals
       TIME0 <= TIME0_sig; --48 ms
@@ -1307,7 +1312,24 @@ if (rising_edge(CFIFO)) then
 end if;
 end process send_data_pattern;
 
+capture_TE : process (C125)  --capture the TE input with the 125 MHz clock
+begin
+  if(rising_edge(C125)) then
+    TE_sig <= TE_sys_sig;
+  end if;
+end process capture_TE;       
 
+capture_ctrl : process (C125)  --capture critical control signals 
+begin
+  if(rising_edge(C125)) then
+    RunTG_ctrl2_sig <= RunTG_ctrl_sig;
+    RunTG_ctrl3_sig <= RunTG_ctrl2_sig;
+    RunTG_sig <= RunTG_ctrl3_sig;
+    RunFm_ctrl2_sig <= RunFm_ctrl_sig;    
+    RunFm_ctrl3_sig <= RunFm_ctrl2_sig;    
+    RunFm_sig <= RunFm_ctrl3_sig;    
+  end if;
+end process capture_ctrl;       
 -------------------------
 
 
@@ -2121,7 +2143,7 @@ end process send_data_pattern;
   mux_rtp0 : mux64
   	     port map (
             data_sel => c167_reg1_sig(5 downto 0),
-            data_in(0)  => c167_reg15_sig(0),  --sum_data(0),        --Sum Data LSB channel 0
+            data_in(0)  => RunFm_sig,  --RunFm
             data_in(1)  => sum_data(2),        --Sum Data LSB channel 1
             data_in(2)  => sum_data(4),        --          .
             data_in(3)  => sum_data(6),        --          .
@@ -2178,17 +2200,17 @@ end process send_data_pattern;
             data_in(50) => FrameSync_sig,
             data_in(51) => PPS_GPS_sig,
             data_in(52) => TE_sig,
-            data_in(53) => FrameSync_sig,
+            data_in(53) => FrameNum_sig(0),
             data_in(54) => TIME0_sig,
             data_in(55) => TIME1_sig,
             data_in(56) => PPS_PIC_sig,
-            data_in(57) => c167_reg14_sig(5),  --RunFm, address 0x39
+            data_in(57) => RunFm_sig,  --RunFm, address 0x39
             data_in(58) => PPS_PIC_adv_sig,
             data_in(59) => OneMsec_pic_sig,
             data_in(60) => apply_sig,           
             data_in(61) => CFIFO_Z1_sig, 
             data_in(62) => To10GbeTxData2(0),          
-            data_in(63) => '0',
+            data_in(63) => RunTG_sig,   --RunTG, address 0x3f
             data_out => ROACHTP(0)	     
   	     );
 	     
@@ -2241,7 +2263,7 @@ end process send_data_pattern;
             data_in(41) => PPS_Maser_sig,
             data_in(42) => PPS_GPS_sig,
             data_in(43) => TE_sig,
-            data_in(44) => FrameSync_sig,
+            data_in(44) => FrameSync_sig,         --high 1 clock at beg of each frame, 0x2c
             data_in(45) => TIME0_sig,             --48-msec interrupt to C167, addr 0x2d
             data_in(46) => TIME1_sig,             --1-msec interrupt to C167, addr 0x2e
             data_in(47) => PPS_PIC_sig,           --internal 1 PPS, addr 0x2f
@@ -2265,11 +2287,11 @@ end process send_data_pattern;
   	     );  	
   	     
 --ROUTB(3 downto 0) test points  	          
-  ROUTB_sig(0) <= c167_reg14_sig(4);   --test_ctr(7);
+  ROUTB_sig(0) <= TIME0_sig;   --test_ctr(7);  --JR1-5
 --  ROUTB_sig(1) <= test_ctr_fifo(7);
-  ROUTB_sig(1) <= tgtp1_sig;              --PPS_PIC_sig;
-  ROUTB_sig(2) <= test_ctr_125(7);
-  ROUTB_sig(3) <= C125;  
+  ROUTB_sig(1) <= PPS_PIC_sig;                 --JR1-7
+  ROUTB_sig(2) <= FrameSync_sig;               --JR1-9
+  ROUTB_sig(3) <= RunTG_sig;  
 	
 --process for generating test frequencies
 get_tst_freq: process(adc_clk)
