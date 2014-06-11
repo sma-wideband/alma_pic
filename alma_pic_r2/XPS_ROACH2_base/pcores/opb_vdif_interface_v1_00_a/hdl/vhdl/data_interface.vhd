@@ -8,6 +8,8 @@ use IEEE.STD_LOGIC_UNSIGNED.ALL;
 
 -- This entity controls the payload to be added in the VDIF packet
 
+-- # $Id: data_interface.vhd,v 1.4 2014/06/11 19:33:31 rlacasse Exp $
+
 entity data_interface is
 port(
 
@@ -87,9 +89,12 @@ architecture comportamental of data_interface is
    signal sum_data_sig    : std_logic_vector(63 downto 0); --connected to sum_data
    signal sum_data_sig_Z1 : std_logic_vector(63 downto 0); --for registered sum_data
    signal td_sig       : std_logic_vector(63 downto 0); --test data
+   signal td_sig_be    : std_logic_vector(63 downto 0); --test data, big endian 
    signal ditp0_sig    : std_logic;  --test point   
    signal ditp1_sig    : std_logic;  --test point
    signal ditp2_sig    : std_logic;  --test point   
+   signal sum_di_nor   : std_logic_vector(63 downto 0);  --sum data (or test data) before permutation
+   signal sum_di_per   : std_logic_vector(63 downto 0);  --sum data (or test data) after permutation
 
    --component declarations
    component sum_data_chk
@@ -134,6 +139,10 @@ architecture comportamental of data_interface is
    end component out_data_sel;
 
 begin
+
+   --permute the sum or test data to be in the order the recorder wants and send to recorder
+   sum_di <= sum_di_per;
+   sum_di_per   <= sum_di_nor(7 downto 0) & sum_di_nor(15 downto 8) & sum_di_nor(23 downto 16) & sum_di_nor(31 downto 24) & sum_di_nor(39 downto 32) & sum_di_nor(47 downto 40) & sum_di_nor(55 downto 48) & sum_di_nor(63 downto 56);   
    --  Component instantiation.
 
    sum_data_chk_0: sum_data_chk
@@ -170,8 +179,8 @@ begin
    port map(
      data_sel  => data_sel,
      sum_in 	 => sum_data_sig_Z1,
-     td_in		 => td_sig,
-     sum_di	   => sum_di
+     td_in		 => td_sig_be,
+     sum_di	   => sum_di_nor
   );
   
    --signal connections
@@ -179,7 +188,9 @@ begin
    ditp0        <= ditp0_sig;
    ditp1        <= ditp1_sig;
    ditp2        <= ditp2_sig;    
-  
+   td_sig_be	<= td_sig(7 downto 0) & td_sig(15 downto 8) & td_sig(23 downto 16) & td_sig(31 downto 24) & td_sig(39 downto 32) & td_sig(47 downto 40) & td_sig(55 downto 48) & td_sig(63 downto 56);
+
+
    --processes
    process(C125)  --clock in the data
    begin
