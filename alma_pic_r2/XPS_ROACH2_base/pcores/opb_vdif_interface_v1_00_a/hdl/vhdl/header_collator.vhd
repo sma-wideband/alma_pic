@@ -8,6 +8,7 @@ use IEEE.NUMERIC_STD.ALL;
 --This entity packs the sum data according to the number of channels to be recorded
 --See the ICD with computing for cool graphics showing the details and comments in the
 --code below for additional details
+-- # $Id: header_collator.vhd,v 1.4 2014/06/11 19:35:23 rlacasse Exp $
 
 entity header_collator is
  port(
@@ -93,11 +94,13 @@ architecture arch of header_collator is
     --word 6 and 7 are a repeat of the PSN
     
     --form 64-bit words from 32-bit words
-    lWord0   <= PSN(31 downto 0) & PSN(63 downto 32);    
-    lWord1   <= word0 & word1;
-    lWord2   <= word2 & word3;
-    lWord3   <= word4 & statusWord;
-    lWord4   <= PSN(31 downto 0) & PSN(63 downto 32);    
+    lWord0   <= PSN(7 downto 0) & PSN(15 downto 8) & PSN(23 downto 16) & PSN(31 downto 24) & PSN(39 downto 32) & PSN(47 downto 40) & PSN(55 downto 48) & PSN(63 downto 56);       
+    lWord1   <= word0(7 downto 0) & word0(15 downto 8) & word0(23 downto 16) & word0(31 downto 24) & word1(7 downto 0) & word1(15 downto 8) & word1(23 downto 16) & word1(31 downto 24);
+    lWord2   <= word2(7 downto 0) & word2(15 downto 8) & word2(23 downto 16) & word2(31 downto 24) & word3(7 downto 0) & word3(15 downto 8) & word3(23 downto 16) & word3(31 downto 24);
+ lWord3   <= word4(7 downto 0) & word4(15 downto 8) & word4(23 downto 16) & word4(31 downto 24) & statusWord(7 downto 0) & statusWord(15 downto 8) & statusWord(23 downto 16) & statusWord(31 downto 24) ;
+-- the order below seems right to Rich, but not to Geoff.  The order above is what Geoff wants
+--    lWord3   <= statusWord(7 downto 0) & statusWord(15 downto 8) & statusWord(23 downto 16)  & statusWord(31 downto 24) & word4(7 downto 0) & word4(15 downto 8) & word4(23 downto 16) & word4(31 downto 24);
+    lWord4   <= PSN(7 downto 0) & PSN(15 downto 8) & PSN(23 downto 16) & PSN(31 downto 24) & PSN(39 downto 32) & PSN(47 downto 40) & PSN(55 downto 48) & PSN(63 downto 56);
     
     mux: process(Hdr_sel, lWord0, lWord1, lWord2, lWord3, lWord4)
     begin
@@ -114,21 +117,21 @@ architecture arch of header_collator is
 	
 	process(C125,TE)
 	begin
-		if c125='1' and c125'event then			
+		if (rising_edge(C125)) then			
 			TE_s <= TE; 
 		end if;
     end process;	
 	
 	
-	capture_upon_te_rising_edge: process(C125,TE,TE_s,lWord0,lWord1,lWord2,lWord3,lWord4)
+	capture_upon_te_rising_edge: process(C125)
 	begin
-		if c125='1' and c125'event then			
+		if (rising_edge(C125)) then			
 			if TE='1' and TE_s='0' then
-				lWord0_register <= lWord0;
-				lWord1_register <= lWord1;
-				lWord2_register <= lWord2;
-				lWord3_register <= lWord3;
-				lWord4_register <= lWord4;
+				lWord0_register <= PSN;
+				lWord1_register <= word1 & word0;
+				lWord2_register <= word3 & word2;
+				lWord3_register <= statusWord & word4;
+				lWord4_register <= PSN;
 			 end if;	
 		end if;				
 	end process;
