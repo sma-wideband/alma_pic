@@ -6,7 +6,7 @@ use IEEE.STD_LOGIC_UNSIGNED.ALL;
 -------------------------------------------------------
 -- This component is used to generate a frame sync pulse and a frame count for the VDIF format, based on the 
 -- 1PPS_PIC, Run (from uP_interface), nchan (from uP_interface).  Frame length varies with the number of channels formatted; 
--- # $Id: frame_gen.vhd,v 1.6 2014/01/10 17:28:14 asaez Exp $
+-- # $Id: frame_gen.vhd,v 1.9 2014/06/11 19:31:32 rlacasse Exp $
 
 entity frame_gen is
 port(
@@ -93,13 +93,15 @@ begin
 			end if;
 			
 			
-			if startReq_state = '1' AND one_PPS_PIC_Adv ='1' then			
+			if  one_PPS_PIC_Adv ='1' then						
 				FrameNum_register 	<= X"00_0000";
-				FrameSync			<= '1';  --high for the frame 0
-				timer				:= 0;			
-        stopped_state       <= '0';
-        startReq_state      <= '0';
-        running_state       <= '1';							
+				if startReq_state = '1' then
+					FrameSync		<= '1';  --high for the frame 0
+					timer			:= 0;			
+					stopped_state       	<= '0';
+					startReq_state      	<= '0';
+					running_state       	<= '1';							
+				end if;
 			end if;
 		end if;											-- End of actions which happens synchronously.
 	end process;	
