@@ -7,7 +7,7 @@ use IEEE.STD_LOGIC_UNSIGNED.ALL;
 
 -- This entity is used to generate an internal 1PPS reference signal, 1PPS_PIC.
 -- It uses the TE_p rising edge for alignment and depends on the signal 1PPS_arm from the uP_interface to tell it that the next TE is coincident with the maser 1PPS.
--- # $Id: one_pps_pic_gen.vhd,v 1.6 2014/01/06 22:12:55 cv-corr Exp $
+-- # $Id: one_pps_pic_gen.vhd,v 1.8 2014/06/11 19:38:06 rlacasse Exp $
 
 entity one_pps_pic_gen is
    port	(
@@ -36,18 +36,25 @@ signal counter    : std_logic_vector(27 downto 0); -- BUS:=X"000_0000";  		--28 
 signal one_pps    : std_logic := '0';
 signal RunTG_Z1   : std_logic;
 signal syncReq    : std_logic := '0';
+signal TE_Z1      : std_logic := '0';
+signal TE_rising_edge     : std_logic := '0';
+
 
 begin
-process(C125,RunTG,Grs,TE)
+--process(C125,RunTG,Grs,TE)   remove extra dependencies to see if intermittent failure to synce goes away.
+
+  TE_rising_edge <= TE and not TE_Z1;
+process(C125)
 begin
 	if Grs='1' then														-- Asynchronous reset
 		counter <= X"000_0000";	
 		ONE_PPS_PIC_Adv <= '1';			
 		one_pps <= '1';		
-	elsif C125='1' and C125'event then		-- upon 125MHz clock rising edge.
+	elsif rising_edge(C125) then		-- upon 125MHz clock rising edge.
 	  ONE_PPS_PIC <= one_pps;							-- "ONE_PPS_PIC" is high when counter = 0
 		counter <= counter + '1';						-- increment counter
 		RunTG_Z1 <= RunTG;                  -- make a delayed copy of RunTG
+		TE_Z1 <= TE;                        -- make a delayed copy of TE 		
 		
 		-- "one_pps_pic" and "one_pps_pic_adv" will be high 8nsec
 		
@@ -66,12 +73,10 @@ begin
 		if RunTG='1' and RunTG_Z1 = '0' then					-- detect rising edge
 			syncReq  <= '1';  
 		end if;                                       -- request sync at next TE
-	  if TE = '1' then
-	    syncReq  <= '0';
-	  end if;
 	    
-		if syncReq = '1' and TE = '1' then						-- synchronize the counter to TE
-			counter <= X"000_0000";		
+		if syncReq = '1' and TE_rising_edge = '1' then						-- synchronize the counter to TE
+			counter <= X"000_0000";	
+			syncReq  <= '0';	
 		end if;		
 		
 	end if;
