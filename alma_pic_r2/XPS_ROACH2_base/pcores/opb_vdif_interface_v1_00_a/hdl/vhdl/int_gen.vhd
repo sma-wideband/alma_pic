@@ -9,7 +9,7 @@ use UNISIM.vcomponents.all;
 -- This component is used to generate the 1-msec and 48-msec interrupts for the c167 microprocessor on the PIC.
 -- Unlike many components in this design, these interrupts should not wait for Grs and Run.  Instead, they should go
 -- active as soon as possible.
--- -- # $Id: int_gen.vhd,v 1.8 2014/04/29 20:45:02 asaez Exp $
+-- -- # $Id: int_gen.vhd,v 1.9 2014/06/11 19:36:46 rlacasse Exp $
 
 --modified 2014-4-7 by rlacasse to that a TE error would be identifed for both an early and late TE pulse.
 
@@ -102,6 +102,28 @@ begin
 	);
 	TE_rising_edge <= TE_in and not(TE_in_register);
 
+	TIME0_generation: process(C125)  is
+		variable counter_TIME0: integer:= 0 ;		
+		begin
+
+		if C125='1' and C125'event then								-- generates TE signal (48 msec)
+			if TE_rising_edge='1' or counter_TIME0=limit_TIME0 then
+				counter_TIME0 := 0;
+				TIME0 <= '1';
+			else 
+				counter_TIME0 := counter_TIME0 + 1;
+			end if;	
+			
+			if counter_TIME0 < duty_cycle_TIME0 then						-- generates the TIME1 signal according to the duty cycle specs
+				TIME0 <= '1';
+			else
+				TIME0 <= '0';
+			end if;
+				
+		end if;
+	end process TIME0_generation;
+	
+
 
 	check_te: process(C125) is
 		begin
@@ -117,12 +139,6 @@ begin
 				if Reset_te='1' then
 					TE_err_sig <= '0';
 				end if;
-			end if;
-			
-			if counter_TIME0_sig < X"00F424" then
-				TIME0 <= '1';
-			else
-				TIME0 <= '0';
 			end if;
 
 			if counter_TIME0_sig > X"5B8D80" then
