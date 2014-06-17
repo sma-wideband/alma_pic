@@ -16,7 +16,7 @@ use IEEE.MATH_REAL.ALL;
 
 -- The component's outputs include the read enables to both FIFOs, d_rd_en and h_rd_en as well as two control signals to the ten_GbE interface, To10GbeTxDataValid and To10GbeTxEOF.
 
--- # $Id: read_control.vhd,v 1.1 2013/10/03 12:29:48 nlasso Exp $ 
+-- # $Id: read_control.vhd,v 1.4 2014/06/17 18:14:13 rlacasse Exp $ 
 
 entity read_control is
    port(
@@ -154,7 +154,7 @@ architecture arch of read_control is
             end if;           
           end if;       
           
-          if(wait_sig = '1' AND prog_full = '1' AND unsigned(nchan) < 6) then --go transmit a frame
+          if(wait_sig = '1' AND prog_full = '1' AND unsigned(nchan_sig) < 6) then --go transmit a frame; do we really need the < 6??
             h_rd_en               <= '0';
             h_rd_en_sig           <= '0';
             d_rd_en               <= '0';
@@ -177,7 +177,7 @@ architecture arch of read_control is
 	          muxed_data_sig <= d_fifo_out;
 	        end if;
 	          
-	        --generate control signals as a function of where we are in the frame and nchan    
+	        --generate control signals as a function of where we are in the frame and nchan_sig    
           if(counter1 >= 1 and counter1 <= 5) then
             h_rd_en               <= '1';		-- enable the reading of 5 header words (including PSN)
             h_rd_en_sig           <= '1';
@@ -186,7 +186,7 @@ architecture arch of read_control is
             To10GbeTxEOF_a        <= '0';
 
 	        elsif(counter1 >= 6 and counter1 < 1010) then
-            if(nchan = "00000" OR nchan = "00001") then
+            if(nchan_sig = "00000" OR nchan_sig = "00001") then
 	            if (counter1 < 629) then  --transmit 624 octets
 	              h_rd_en               <= '0';
 	              h_rd_en_sig           <= '0';
@@ -218,7 +218,7 @@ architecture arch of read_control is
 	              end if;		            
 	              counter1 := X"0000";
 	            end if;
-	          elsif (nchan = "00010" OR nchan = "00011" OR nchan = "00100" OR nchan = "00101") then
+	          elsif (nchan_sig = "00010" OR nchan_sig = "00011" OR nchan_sig = "00100" OR nchan_sig = "00101") then
 	            if (counter1 < 1004) then  --transmit 999 octets
 	              h_rd_en               <= '0';
 	              h_rd_en_sig           <= '0';
@@ -250,7 +250,7 @@ architecture arch of read_control is
 	              end if;		            
 	              counter1 := X"0000";
 	            end if;
-            else  --illegal nchan so go to idle state
+            else  --illegal nchan_sig so go to idle state
 		            h_rd_en               <= '0';
 		            h_rd_en_sig           <= '0';
 		            d_rd_en               <= '0';
@@ -261,7 +261,7 @@ architecture arch of read_control is
                 startReq_sig          <= '0';
                 wait_sig              <= '0';
                 run_sig               <= '0';			            
-            end if; --if nchan...
+            end if; --if nchan_sig...
           end if;   --if counter1...
 	    end if;       --if rising_edge
 	    counter1_sig <= std_logic_vector(counter1);    --so we can follow it, one clock later, in ghdl
