@@ -7,7 +7,7 @@ use work.rdbe_pkg.all;
 Library UNISIM;
 use UNISIM.vcomponents.all;
 
--- # $Id: opb_vdif_interface.vhd,v 1.14 2014/06/11 19:40:02 rlacasse Exp $
+-- # $Id: opb_vdif_interface.vhd,v 1.15 2014/06/17 18:13:26 rlacasse Exp $
 
 entity opb_vdif_interface is
   generic ( 
@@ -575,8 +575,10 @@ is
     signal RunTG_sig     :std_logic := '0';  --for sync'ing to the 1PPS   
     signal RunFm_sig          : std_logic;                             --"run formatter" derived from c167_reg14_sig(5) sync'd to clock
     signal RunFm_ctrl_sig     : std_logic;                             --"run formatter" derived from c167_reg14_sig(5)       
-    signal RunFm_ctrl2_sig     : std_logic;                             --"run formatter" derived from c167_reg14_sig(5)       
-    signal RunFm_ctrl3_sig     : std_logic;                             --"run formatter" derived from c167_reg14_sig(5)       
+    signal RunFm_ctrl2_sig    : std_logic;                             --"run formatter" derived from c167_reg14_sig(5)       
+    signal RunFm_ctrl3_sig    : std_logic;                             --"run formatter" derived from c167_reg14_sig(5)       
+    signal Grs_sig            : std_logic;                             --general reset for everything except data_formatter
+    signal GrsFm_sig          : std_logic;                              --general reset for data_formatter
     
     --signals for DAC
     signal DAC_CLK_p_sig        : std_logic;
@@ -859,7 +861,7 @@ begin
    port map(
       sum_data   => sum_data_out_bb,
       C125       => C125,        
-      Grs        => c167_reg14_sig(3),          --control reg 0, bit 2 from C167          
+      Grs        => Grs_sig,          --control reg 0, bit 2 from C167          
       chan       => c167_reg16_sig(5 downto 0), --control reg 2, bits 5 to 0 from C167       
       stat_msec  => c167_reg17_sig(6 downto 0), --control reg 3, bits 6 to 0 from C167       
       prn_run    => c167_reg15_sig(0),          --control reg 1, bit 0 from C167     
@@ -917,7 +919,7 @@ begin
    timing_generator_0: timing_generator
    port map(
 
-          Grs                => c167_reg14_sig(03), -- ok (1=> reset)       IN
+          Grs                => Grs_sig,            -- ok (1=> reset)       IN
           RunTG              => c167_reg14_sig(4),  -- ok                   IN
           RunFm              => RunFm_sig,          --rising edge (and 1 PPS) used to start formatter and part of timing gen
           C125               => C125,               -- ok                   IN
@@ -964,7 +966,7 @@ begin
       TE_PIC        => TIME0_sig,       --TE signal from timing gen; rising edge is detected by formatter
       PPS_PIC_Adv   => PPS_PIC_Adv_sig, --1 PPS from timing gen, 1 clock early
       PPS_PIC       => PPS_PIC_sig,     --1PPS from timing gen
-      Grs           => c167_reg14_sig(03),  --from C167; a 1 causes reset
+      Grs           => GrsFm_sig,           --from C167; a 1 causes reset
       RunFM         => RunFm_sig,           --from C167;rising edge (and 1 PPS) used to start formatter and part of timing gen 
       hdr_sel_C167  => c167_reg11_w_sig(5 downto 0),  --used to select which part of header data captured at TE to transmit
       To10GbeTxData => To10GbeTxData_sig,           --three signals to 10 GbE module
@@ -1208,6 +1210,9 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
    --C167-related mappings
        RunTG_ctrl_sig    <= c167_reg14_sig(4);
        RunFm_ctrl_sig    <= c167_reg14_sig(5);       
+       Grs_sig               <= c167_reg14_sig(3);    --General reset for all modules except data_formatter
+       GrsFm_sig             <= c167_reg15_sig(3);    --General reset for data_formatter to allow restart independent of data_formatter
+       
        --because of conflicts between the FPGA requirements and ICD with Computing,
        --the DOUT bits of C167 control word must be mapped to td_sel and data_sel as follows
        td_sel_sig(2)     <= ( NOT c167_reg14_sig(7) ) AND ( NOT c167_reg14_sig(6) );
@@ -2143,7 +2148,7 @@ end process capture_ctrl;
   mux_rtp0 : mux64
   	     port map (
             data_sel => c167_reg1_sig(5 downto 0),
-            data_in(0)  => RunFm_sig,  --RunFm
+            data_in(0)  => c167_reg14_sig(03),  --Grs
             data_in(1)  => sum_data(2),        --Sum Data LSB channel 1
             data_in(2)  => sum_data(4),        --          .
             data_in(3)  => sum_data(6),        --          .
@@ -2287,11 +2292,11 @@ end process capture_ctrl;
   	     );  	
   	     
 --ROUTB(3 downto 0) test points  	          
-  ROUTB_sig(0) <= TIME0_sig;   --test_ctr(7);  --JR1-5
+  ROUTB_sig(0) <= RunFm_sig;   --test_ctr(7);  --JR1-5
 --  ROUTB_sig(1) <= test_ctr_fifo(7);
-  ROUTB_sig(1) <= PPS_PIC_sig;                 --JR1-7
-  ROUTB_sig(2) <= FrameSync_sig;               --JR1-9
-  ROUTB_sig(3) <= RunTG_sig;  
+  ROUTB_sig(1) <= FrameSync_sig;                 --JR1-7
+  ROUTB_sig(2) <= To10GbeTxDataValid_sig;        --JR1-9
+  ROUTB_sig(3) <= To10GbeTxEOF_sig;              --JR1-11
 	
 --process for generating test frequencies
 get_tst_freq: process(adc_clk)
