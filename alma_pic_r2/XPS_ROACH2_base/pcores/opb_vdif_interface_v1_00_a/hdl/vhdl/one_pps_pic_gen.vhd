@@ -7,7 +7,7 @@ use IEEE.STD_LOGIC_UNSIGNED.ALL;
 
 -- This entity is used to generate an internal 1PPS reference signal, 1PPS_PIC.
 -- It uses the TE_p rising edge for alignment and depends on the signal 1PPS_arm from the uP_interface to tell it that the next TE is coincident with the maser 1PPS.
--- # $Id: one_pps_pic_gen.vhd,v 1.8 2014/06/11 19:38:06 rlacasse Exp $
+-- # $Id: one_pps_pic_gen.vhd,v 1.9 2014/07/22 20:44:07 asaez Exp $
 
 entity one_pps_pic_gen is
    port	(
@@ -22,7 +22,9 @@ entity one_pps_pic_gen is
 
    ONE_PPS_PIC : out std_logic; 	--internal 1PPS, high for one C125 clock 
 
-   ONE_PPS_PIC_Adv: out std_logic 	-- high for one clock exactly one clock before 1PPS_PIC
+   ONE_PPS_PIC_Adv: out std_logic; 	-- high for one clock exactly one clock before 1PPS_PIC
+   
+   samp_PPS_Ctr: out std_logic_vector(27 downto 0)  --the 1PPS counter sampled at the TE rising edge
 
    	);
 end one_pps_pic_gen;
@@ -78,6 +80,10 @@ begin
 			counter <= X"000_0000";	
 			syncReq  <= '0';	
 		end if;		
+
+		if TE_rising_edge = '1' then						-- capture the 1-PPS counter for the CCC
+			samp_PPS_Ctr <= counter;		
+		end if;			
 		
 	end if;
 end process;
