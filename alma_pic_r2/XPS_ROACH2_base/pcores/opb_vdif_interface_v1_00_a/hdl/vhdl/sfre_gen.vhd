@@ -6,7 +6,7 @@ use IEEE.STD_LOGIC_UNSIGNED.ALL;
 -------------------------------------------------------
 -- This component is used to generate seconds from reference epoch field in the VDIF frame.  It receives an initial 
 -- value from the uP_interface and then free-runs based on the C125 clock.
--- # $Id: sfre_gen.vhd,v 1.4 2014/01/07 21:24:27 cv-corr Exp $
+-- # $Id: sfre_gen.vhd,v 1.5 2014/04/03 15:53:51 rlacasse Exp $
 
 entity sfre_gen is
 	port(
