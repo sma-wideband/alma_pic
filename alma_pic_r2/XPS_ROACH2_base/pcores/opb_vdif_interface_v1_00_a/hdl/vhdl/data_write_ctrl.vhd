@@ -15,7 +15,7 @@ use IEEE.MATH_REAL.ALL;
 -- The write enable signal goes active at the first PPS_PIC after RunFm goes high
 
 
--- # $Id: data_write_ctrl.vhd,v 1.3 2013/04/29 14:41:24 nlasso Exp $ 
+-- # $Id: data_write_ctrl.vhd,v 1.4 2014/04/03 16:39:31 rlacasse Exp $ 
 
 entity data_write_ctrl is
    port(
