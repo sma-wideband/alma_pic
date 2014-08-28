@@ -7,7 +7,7 @@ use work.rdbe_pkg.all;
 Library UNISIM;
 use UNISIM.vcomponents.all;
 
--- # $Id: opb_vdif_interface.vhd,v 1.15 2014/06/17 18:13:26 rlacasse Exp $
+-- # $Id: opb_vdif_interface.vhd,v 1.22 2014/08/28 13:28:00 rlacasse Exp $
 
 entity opb_vdif_interface is
   generic ( 
@@ -20,11 +20,8 @@ entity opb_vdif_interface is
     C_FAMILY : string := "virtex5";
 
     -- other parameters
-    REV_MAJOR_INT   :   std_logic_vector(7 downto 0) := x"01";   -- major revision, integer part
-    REV_MAJOR_FRAC  :   std_logic_vector(7 downto 0) := x"00";   -- major revision, fractional part
-    P_TYPE          :   std_logic_vector(7 downto 0) := x"83";   -- personality type
+    VERSION     : std_logic_vector(7 downto 0) := X"02";  --manually programmed version number
     ADDRHI      : std_logic_vector(23 downto 0) := X"000000";
-    nch         : integer range 0 to 7 := 4;      -- number of channels synthesized
     REG12_LGTH  : integer := 40
    );
     port
@@ -73,9 +70,6 @@ entity opb_vdif_interface is
       TIME1           : out std_logic;  --the 1 msec TE signal to the microprocessor interrupt      
       DONE            : out std_logic;  --signal to indicate to microprocessor that FPGA is programmed.  Drive high      
       DLL             : out std_logic;  --signal to indicate that DLL is locked.  Eventually tie to MMCM.  For now tie high      
---      DataRdy         : in std_logic_vector(nch-1 downto 0);
---      TimeCode        : in std_logic_vector(31 downto 0);
---      dataIn          : in std_logic_vector(63 downto 0);  --data for VLBA; need to delete sometime
 
       -- ten GbE ports
       To10GbeTxData   : out std_logic_vector(63 downto 0);
@@ -105,70 +99,19 @@ end entity opb_vdif_interface;
 architecture vdif_arch OF opb_vdif_interface
 is
 -------------------------------------------------------------------------------
--------------------------------------------------------------------------------
--- the two components below are from the VLBA design; they are commented out for now and should eventually be deleted
---    component vdif_input_sel
---        port
---        (
---            wrClk       : in std_logic;
---            rdClk       : in std_logic;
---            reset       : in std_logic;     -- global reset
---            valid       : in std_logic;     -- valid data started
---            dataRdy     : in std_logic;
---            rdFifoEna   : in std_logic;
---            cplxFlg     : in std_logic;
---            numBit      : in std_logic_vector(4 downto 0);
-
---            data_in     : in std_logic_vector(15 downto 0);
-
---            full        : out std_logic;
---            prog_full   : out std_logic;
---            data_out    : out std_logic_vector(63 downto 0)
---        );
---    end component vdif_input_sel;
-
---    component vdif_formatter is
---        port
---        (
---            Clk         : in std_logic; -- tx clock
---            Grs         : in std_logic;
---            MstrEna     : in std_logic;
---            Header      : in vdifHdr;   -- 8 x 32 bits
---            FifoData    : in std_logic_vector(63 downto 0);
-
---            FifoEna             : out std_logic;
---            To10GbeTxData       : out std_logic_vector(63 downto 0);
---            To10GbeTxDataValid  : out std_logic;
---            To10GbeTxEOF        : out std_logic
---        );
---    end component vdif_formatter;
-
---    component vdif_data
---      generic (
---        SAMPLES_IN : integer);          -- samples in
---      port (
---        clk_p      : in  std_logic;
---        clk_n      : in  std_logic;
---        sum_data_p : in  std_logic_vector(63 downto 0);
---        sum_data_n : in  std_logic_vector(63 downto 0);
---        clk_out    : out std_logic;
---        data_out   : out std_logic_vector(63 downto 0));
---    end component vdif_data;
-    
+   
     component  c167_interface
 	     port(
-		   uclk	       	: in std_logic;					-- processor clock 
-		   read_write  	: in std_logic;					-- read and write selection, read_write='1' => read, '0' => write
-		   ctrl_data		: in std_logic; 			-- control data selector, ctr_data='1' => control, '0' => data 
-		   c167_data_I	: in std_logic_vector (7 downto 0); 	-- bus connection with the c167, bidirectional
-		   c167_data_O	: out std_logic_vector (7 downto 0); 	-- bus connection with the c167, bidirectional
-		   data_from_cpu	: out std_logic_vector (7 downto 0); -- data_from_CPU, must be used together with C167_WE and C167_ADDR
-		   data_to_cpu		: in std_logic_vector (7 downto 0);	-- data_to_CPU, must be used together with C167_ADDR
---		   C167_RD_EN			: out std_logic_vector (31 downto 0);	-- Read enable signals, they must be individually connected to the tri-state controller associated with desired signals
---		   C167_WR_EN		  : out std_logic_vector (31 downto 0);	-- Write enable signals, they must be individually connected to the "clock enable" associated to the addressed register.
-	     C167_WE        : out std_logic;                    -- new write enable signal
-	     C167_ADDR      : out std_logic_vector(7 downto 0); -- new address bus		   
-		   C167_CLK				: out std_logic	-- C167 clock signal, the first 4 clocks were removed.
+		   uclk	       		: in std_logic;					-- processor clock 
+		   read_write  		: in std_logic;					-- read and write selection, read_write='1' => read, '0' => write
+		   ctrl_data		: in std_logic; 				-- control data selector, ctr_data='1' => control, '0' => data 
+		   c167_data_I		: in std_logic_vector (7 downto 0); 		-- bus connection with the c167, bidirectional
+		   c167_data_O		: out std_logic_vector (7 downto 0); 		-- bus connection with the c167, bidirectional
+		   data_from_cpu	: out std_logic_vector (7 downto 0); 		-- data_from_CPU, must be used together with C167_WE and C167_ADDR
+		   data_to_cpu		: in std_logic_vector (7 downto 0);		-- data_to_CPU, must be used together with C167_ADDR
+	     	   C167_WE      	: out std_logic;                    		-- new write enable signal
+	           C167_ADDR      	: out std_logic_vector(7 downto 0); 		-- new address bus		   
+		   C167_CLK		: out std_logic					-- C167 clock signal, the first 4 clocks were removed.
 	);
   end component c167_interface;
   
@@ -194,6 +137,7 @@ is
           sum_data   : in std_logic_vector(63 downto 0); --sum data
           C125       : in std_logic; --clock from timing generator
           Grs        : in std_logic;
+          Grs_stat   : in std_logic;
           chan       : in std_logic_vector(5 downto 0);
           stat_msec  : in std_logic_vector(6 downto 0);
           prn_run    : in std_logic;
@@ -242,13 +186,15 @@ is
          TIME0             	: out std_logic; 				-- for c167 48-msec interrupt;
          one_PPS_PIC       	: out std_logic; 				-- for monitoring internal 1 PPS (LVDS output)
          one_PPS_MASER_OFF 	: out std_logic_vector(27 downto 0); 	-- maser vs local 1PPS offset
-         one_PPS_GPS_OFF   	: out std_logic_vector(27 downto 0); 	-- gps vs local 1PPS offset         
+         one_PPS_GPS_OFF   	: out std_logic_vector(27 downto 0); 	-- gps vs local 1PPS offset
+         one_PPS_TE_OFF   	: out std_logic_vector(27 downto 0); 	-- TE vs local 1PPS offset measured at seconds 0, 6, ...
 	       								-- latched high when internal and external TE are not coincident
          								-- cleared to low by reset_te bit = 1 from uP_interface
          TE_Err          	: out std_logic;         
          reset_te        	: in  std_logic;		        -- high resets TE_Err
          one_PPS_PIC_adv    : out std_logic;
          nchan              : in std_logic_vector(4 downto 0);     --log base 2 of number of channels
+         samp_PPS_Ctr       : out std_logic_vector(27 downto 0);  --the 1PPS counter sampled at the TE rising edge
          tgtp0              : out std_logic;  --general purpose test points
          tgtp1              : out std_logic;
          tgtp2              : out std_logic          
@@ -270,7 +216,14 @@ is
         threadID            : in std_logic_vector(9 downto 0);
         stationID           : in std_logic_vector(15 downto 0);
         magicWord           : in std_logic_vector(23 downto 0);
-        statusWord          : in std_logic_vector(31 downto 0);
+        statusWord0         : in std_logic_vector(31 downto 0);
+        statusWord1         : in std_logic_vector(31 downto 0);
+        statusWord2         : in std_logic_vector(31 downto 0);
+        statusWord3         : in std_logic_vector(31 downto 0);
+        statusWord4         : in std_logic_vector(31 downto 0);
+        statusWord5         : in std_logic_vector(31 downto 0);
+        statusWord6         : in std_logic_vector(31 downto 0);
+        statusWord7         : in std_logic_vector(31 downto 0);
 
         CFIFO               : in std_logic;
         C125                : in std_logic;
@@ -300,77 +253,12 @@ is
 
         PPS_read            : out std_logic; --PPS PIC captured by CFIFO clock
         
-        coll_out_C167       : out std_logic_vector(7 downto 0) --captured header
+        coll_out_C167       : out std_logic_vector(7 downto 0); --captured header
+        psn_out 	    : out std_logic_vector(63 downto 0)  --captured PSN
 
        );
      end component;           
 -------------------------------------------------------------------------------
--------------------------------------------------------------------------------
-    -- maximum number of channels that can be used. Initially set to 7.
-    -- if this is to increase - the PPC DeviceData case definitions must change
---    constant MXCH : integer := 7;
---all VLBA stuff; comment out for now; probably delete later
---    type FrameNArray is array (0 to nch-1) of std_logic_vector(23 downto 0);
---    signal FrameNum    : FrameNArray;
---
---    signal ComplexFlags: std_logic_vector(0 to 7);
---
---    type BpS_Array is array (0 to MXCH) of std_logic_vector(4 downto 0);
---    signal Bits_SampA   : BpS_Array;
---
---    type SampRateArray is array (0 to MXCH) of std_logic_vector(23 downto 0);
---    signal SampleRateA  : SampRateArray;
---
---    type Loif_Ftw is array (0 to MXCH) of std_logic_vector(31 downto 0);
---    signal LoifFtwA     : Loif_Ftw;
---
---    type IFnumArray is array (0 to MXCH) of std_logic_vector(3 downto 0);
---    signal IFnumA       : IFnumArray;
---
---    type SubBandArray is array (0 to MXCH) of std_logic_vector(3 downto 0);
---    signal SubBandA     : SubBandArray;
---
---    --type RateArray is array (0 to MXCH) of std_logic_vector(1 downto 0);
---    signal selRate : std_logic_vector(1 downto 0);
---
---    signal ESideBand: std_logic_vector(7 downto 0);
-
-
-    -- VDIF Header definition (from VLBA design; comment out)
---type HdrArray is record
---    --Word 0    words are 32 bits wide
---    InvFlg   : std_logic;-- := 0;
---    Legacy   : std_logic;-- := 0;
---    SFRE     : std_logic_vector(29 downto 0); -- seconds from ref epoch
---    --Word 1
---    RefEpoch : std_logic_vector(7 downto 0);  -- only 6 bits valid
---    FrameNum : std_logic_vector(23 downto 0);
---    --Word 2
---    VERS   : std_logic_vector(2 downto 0);-- := "001";
---    LogCh  : std_logic_vector(4 downto 0);-- := "00000"; --num chan in array=1 (2^^0)?
---    FrameLen : std_logic_vector(23 downto 0);-- := x"1388"; -- =5000?
---    --Word 3
---    CmplxFlg : std_logic;
---    Bits_Samp: std_logic_vector(4 downto 0);-- initially defaults to 2
---    ThreadID : std_logic_vector(9 downto 0);-- default to channel number
---    StationID: std_logic_vector(15 downto 0);
---    --Word 4
---    EDV    : std_logic_vector(7 downto 0);-- := x"3C"; -- ExtendedUserDataVersion
---    --signal UnitFlg  : std_logic;  add this bit to SRU vector below
---    SRU      : std_logic_vector(23 downto 0);
---    --Word 5
---    SYNC   : std_logic_vector(31 downto 0);--:= x"ACABFEED";
---    --Word 6
---    LoifFtw  : std_logic_vector(31 downto 0);
---    --Word 7
---    DBEnum   : std_logic_vector(3 downto 0);
---    IFnum    : std_logic_vector(3 downto 0);
---    SubBand  : std_logic_vector(2 downto 0);
---    ESideBand: std_logic;
---    MajRev   : std_logic_vector(3 downto 0);
---    MinRev   : std_logic_vector(3 downto 0);
---    Persnlity: std_logic_vector(7 downto 0);
---end record HdrArray;
 
     -- clock management
     signal epb_clk : std_logic;         -- connected to OPB_Clk for now
@@ -380,83 +268,17 @@ is
     signal DeviceDataIn  : std_logic_vector(31 downto 0);  -- original data in bus
     signal DeviceDataOut : std_logic_vector(31 downto 0);  -- original data out bus
 
-
---    signal HdrAry : HdrArray; from VLBA design; comment out
---    signal HdrBlk : vdifHdr;  from VLBA design; comment out
- -------------------------------------------------------------------------------
-    -- definitions for vdif channel counter state machine
-    -- this is part of VLBA design
-    type vdifChCntr is
-    (
-        ccStartWait,
-        ccFifoFull,
-        ccWaitFE1,
-        ccWaitFE0,
-        ccIncFrame,
-        ccIncCh
-    ); -- Define the states to increment to next channel/packet
-    signal ccCntrState : vdifChCntr;
  -------------------------------------------------------------------------------
 
-    signal currCh       : integer range 0 to nch-1;
-    signal Legacy       : std_logic;
-    signal StationID    : std_logic_vector(15 downto 0);
-    signal DBEnum       : std_logic_vector(3 downto 0);
+ -------------------------------------------------------------------------------
 
-
-    signal selInput     : std_logic_vector(3 downto 0);
-    signal TimeAlign    : std_logic_vector(15 downto 0);
-    signal TimeAlign_adc: std_logic_vector(15 downto 0);
-    signal data_out     : vdifHdr;
-
-    signal RefEpoch     : std_logic_vector(7 downto 0);
---    signal SecFromRefEpoch : std_logic_vector(29 downto 0);
     signal SyncWord     : std_logic_vector(31 downto 0);
-    signal Status       : std_logic_vector(15 downto 0);
-    signal CurrData     : std_logic_vector(63 downto 0);
-
-    --signal DTMControlReg: std_logic_vector(15 downto 0);
-    signal DTMStatus    : std_logic_vector(2 downto 0);
-    signal TimeSlot1On  : std_logic_vector(31 downto 0);
-    signal TimeSlot1Off : std_logic_vector(31 downto 0);
-    signal DTMOnReg     : std_logic_vector(31 downto 0);
-    signal DTMOffReg    : std_logic_vector(31 downto 0);
-    signal ValidFlag, ValidFlag_sys, ValidFlag_epb, ValidFlag_adc : std_logic;
-    signal ValidA       : std_logic_vector(7 downto 0);
-    signal pps1,pps2,pps3: std_logic;
-    signal pps_sys      : std_logic;
-    signal arm          : std_logic;
-    signal FmtrEna      : std_logic;
-    signal prog_full    : std_logic_vector(nch-1 downto 0);
-    signal full         : std_logic_vector(nch-1 downto 0);
-    signal FifoError    : std_logic;
-    signal FifoEna      : std_logic;
-    signal rdFifoEna    : std_logic_vector(nch-1 downto 0);
-    signal TestMode     : std_logic;
-    signal TimeCntr     : std_logic_vector(15 downto 0);
-    signal log2numchan  : std_logic_vector(4 downto 0);
-    signal EpochSeconds : std_logic_vector(29 downto 0);
-    signal EpochSecSet  : std_logic_vector(29 downto 0);
-    signal EpochSecReg  : std_logic_vector(29 downto 0);
-
-    -- weaver delay should include all other constant delays (like quantizer)
-    constant WVR_DELAY       : std_logic_vector(15 downto 0) := x"000F";
-    constant CIC_DELAY       : std_logic_vector(15 downto 0) := x"0017";
-    constant MUX_DELAY       : std_logic_vector(15 downto 0) := x"0001";
-    constant FIR_DELAY       : std_logic_vector(15 downto 0) := x"0002";
-    signal OnePPSDelayCount : std_logic_vector(15 downto 0);
-    signal TotalDelay       : std_logic_vector(15 downto 0);
-    signal IntDelay         : std_logic_vector(15 downto 0);
-    signal ppsFinish        : std_logic;
 
     -- clock and data signals
     signal clk_p         : std_logic;
     signal clk_n         : std_logic;   
-    signal sum_data    : std_logic_vector(63 downto 0);  
-    signal clk_out       : std_logic;
-    signal sum_out       : std_logic_vector(63 downto 0);
+    signal sum_data      : std_logic_vector(63 downto 0);  
     signal DATA2_sig     : std_logic_vector(63 downto 0); -- connect data_interface to data_formatter
-    signal DATA3_sig     : std_logic_vector(63 downto 0); -- connect data_formatter to 10 GbE
 
     --signals for opb acknowledge
     signal ackSigW         :  std_logic := '0';
@@ -467,8 +289,6 @@ is
 
     -- test signals
     signal test_port_sig : std_logic_vector(31 downto 0) := x"0000_0000";
-    signal test_c_baseaddr : std_logic_vector(31 downto 0) := C_BASEADDR;
-    signal test_c_highaddr : std_logic_vector(31 downto 0) := C_HIGHADDR;
     signal test_ctr        : std_logic_vector(7 downto 0)  := X"00";
     signal test_ctr_fifo   : std_logic_vector(7 downto 0)  := X"00";    
     signal test_ctr_125    : std_logic_vector(7 downto 0)  := X"00";      
@@ -477,7 +297,6 @@ is
     signal C200		   : std_logic;	
     signal C200_ds	   : std_logic;
     signal ROUTB_sig       : std_logic_vector(3 downto 0) := "0000";
-    signal TimeCode_sig    : std_logic_vector(31 downto 0) := X"0000_0000";
     signal td_out_sig      : std_logic_vector(63 downto 0) := X"0000_0000_0000_0000";
     
         
@@ -511,8 +330,10 @@ is
     signal c167_reg17_sig     :std_logic_vector(7 downto 0);           --control register 3
     signal c167_reg18_sig     :std_logic_vector(7 downto 0);           --control register 4
     signal c167_reg19_sig     :std_logic_vector(7 downto 0);           --control register 5
-    signal c167_reg20_sig     :std_logic_vector(7 downto 0);           --control register 6        
-    signal c167_reg21_sig     :std_logic_vector(7 downto 0);           --address register for status RAM
+    signal c167_reg20_sig     :std_logic_vector(7 downto 0);           --control register 6  
+	  --reg21 is a read/write pair to get status data from the accessing the captured 1PPS
+    signal c167_reg21_w_sig   :std_logic_vector(7 downto 0) := X"00";   --for writing to PPS_sel_c167
+	  signal c167_reg21_r_sig   :std_logic_vector(7 downto 0) := X"00";   --for reading from cap_PPS_c167	      
     signal c167_reg22_sig     :std_logic_vector(7 downto 0);           --read request for status RAM           
     signal c167_reg23_sig     :std_logic_vector(7 downto 0) := X"01";  --for LSB of PPS_Maser_Off   
     signal c167_reg24_sig     :std_logic_vector(7 downto 0) := X"02";  --for byte 1 of PPS_Maser_Off
@@ -563,16 +384,11 @@ is
     --c167 bus clock and control signals                                   -                                                                    
     signal C167_CLK_sig       :std_logic;                    --clock for those registers
     signal data_from_cpu_sig  : std_logic_vector(7 downto 0);    
-    signal data_to_cpu_sig    : std_logic_vector(7 downto 0);
---    signal C167_RD_EN_sig    :std_logic_vector(31 downto 0); --one line goes high
---    signal C167_WR_EN_sig    :std_logic_vector(31 downto 0); --one line goes high  
+    signal data_to_cpu_sig    : std_logic_vector(7 downto 0);  
     signal C167_WE_sig        :std_logic; --write to register when low and ctrl_data is low
     signal C167_ADDR_sig      :std_logic_vector(7 downto 0); --address for read/write
     signal apply_sig          :std_logic := '0';  --for testing apply_vdif_header
-    signal RunTG_ctrl_sig     :std_logic := '0';  --for sync'ing to the 1PPS
-    signal RunTG_ctrl2_sig    :std_logic := '0';  --for sync'ing to the 1PPS
-    signal RunTG_ctrl3_sig    :std_logic := '0';  --for sync'ing to the 1PPS    
-    signal RunTG_sig     :std_logic := '0';  --for sync'ing to the 1PPS   
+    signal RunTG_ctrl_sig     :std_logic := '0';  --for sync'ing to the 1PPS 
     signal RunFm_sig          : std_logic;                             --"run formatter" derived from c167_reg14_sig(5) sync'd to clock
     signal RunFm_ctrl_sig     : std_logic;                             --"run formatter" derived from c167_reg14_sig(5)       
     signal RunFm_ctrl2_sig    : std_logic;                             --"run formatter" derived from c167_reg14_sig(5)       
@@ -585,15 +401,14 @@ is
     signal DAC_CLK_n_sig        : std_logic; 
     signal DAC_IN_A_sig         : std_logic_vector(3 downto 0) := "0000"; -- for DAC A
     signal DAC_IN_B_sig         : std_logic_vector(3 downto 0) := "0000"; -- for DAC B
---    signal DAC_IN_A0_sig        :std_logic_vector(3 downto 0) := X"0";
     
     -- system-timing-related signals
-    signal OnePPS               :std_logic := '0';
     signal PPS_PIC_sig          :std_logic := '0'; --FPGA-derived 1-PPS based on TE and command from CCC
     signal PPS_PIC_p_sig        :std_logic ;       --FPGA-derived 1-PPS based on TE and command from CCC buffer output
     signal PPS_PIC_n_sig        :std_logic ;       --FPGA-derived 1-PPS based on TE and command from CCC buffer output
     signal TE_sys_sig           :std_logic := '0'; --for output of differential buffer
     signal TE_sig               :std_logic := '0';
+    signal TE_Z1_sig            :std_logic := '0';
     signal AUXTIME_sig          :std_logic := '0';    
     signal TIME0_sig            :std_logic := '0';
     signal PPS_Maser_sig        :std_logic;  --1-PPS from Maser for sanity check of the locally generated 1-PPS from the TE
@@ -609,18 +424,19 @@ is
     -- timing generator related signals                
    signal SFRE_init_sig         : std_logic_vector (29 downto 0) := "00" & x"000_0000"; 										                      -- high one clock at beginning of frame
    signal FrameSync_sig         : std_logic := '0'; 										                      -- high one clock at beginning of frame
-   signal FrameNum_sig          : std_logic_vector (23 downto 0) := x"00_0000"; 	          -- for VDIF frame number
+   signal FrameNum_sig          : std_logic_vector (23 downto 0) := x"00_0000"; 	        -- for VDIF frame number
+   signal FrameNum_sig_captured : std_logic_vector (23 downto 0) := x"AB_CDEF";          	-- for VDIF frame number
    signal epoch_sig             : std_logic_vector (29 downto 0) := b"00" & x"000_0000";   -- initial value for SFRE
    signal SFRE_sig              : std_logic_vector (29 downto 0) := b"00" & x"000_0000"; 	-- for VDIF seconds field
    signal OneMsec_pic_sig       : std_logic;                                              -- 1 msec pulse, 8-ns wide
    signal TIME1_sig             : std_logic := '0'; 											                    -- for c167 48-msec interrupt; drives MGT_TX_p10 (LVDS output)
    signal GPS_Offset_sig        : std_logic_vector(27 downto 0):= x"000_0000"; 	          -- maser vs local 1PPS offset
    signal Maser_Offset_sig      : std_logic_vector(27 downto 0):= x"000_0000"; 	          -- gps vs local 1PPS offset
+   signal TE_Offset_sig         : std_logic_vector(27 downto 0):= x"000_0000"; 	          -- TE vs local 1PPS offset measured on seconds 0, 6, ...
    signal TE_Err_sig          	: std_logic := '0';
-   signal PPS_PIC_adv_sig   : std_logic;
+   signal PPS_PIC_adv_sig       : std_logic;
    signal nchan_sig             : std_logic_vector(4 downto 0) := "00101";     --log, base 2, of the number of channels
---   signal nchan_a2_sig          : std_logic_vector(4 downto 0);     --log, base 2, of the number of channels, advanced 2 clocks
---   signal nchan_a1_sig          : std_logic_vector(4 downto 0);     --log, base 2, of the number of channels, advanced 2 clocks      
+   signal samp_PPS_Ctr_sig      : std_logic_vector(27 downto 0) := X"000_0000";-- sampled 1-PPS coutner     
    
    --data_formatter related signals
    signal PSN_init_sig          : std_logic_vector (63 downto 0) ;  --initial packet serial number from CCC via C167
@@ -630,7 +446,16 @@ is
    signal threadID_sig          : std_logic_vector(9 downto 0);     --thread ID from CCC via C167
    signal stationID_sig         : std_logic_vector(15 downto 0);    --station ID from CCC via C167
    signal magicWord_sig         : std_logic_vector(23 downto 0);    --magic word from CCC via C167   
-   signal statusWord_sig        : std_logic_vector(31 downto 0);    --status from CCC via C167, C167 itself and FPGA 
+   signal statusWord0_sig       : std_logic_vector(31 downto 0);    --status from CCC via C167, C167 itself and FPGA 
+   signal statusWord1_sig       : std_logic_vector(31 downto 0):= x"0000_0001";
+   signal statusWord2_sig       : std_logic_vector(31 downto 0):= x"0000_0002";
+   signal statusWord3_sig       : std_logic_vector(31 downto 0):= x"0000_0003";
+   signal statusWord4_sig       : std_logic_vector(31 downto 0):= x"0000_0004";
+   signal statusWord5_sig       : std_logic_vector(31 downto 0):= x"0000_0005";
+   signal statusWord6_sig       : std_logic_vector(31 downto 0):= x"0000_0006";
+   signal statusWord7_sig       : std_logic_vector(31 downto 0):= x"0000_0007";
+
+
    signal sum_ch_demux_0_sig    : std_logic;                        --lsb of demuxed data, for monitoring
    signal hrd_sel_0_sig         : std_logic;                        --lsb of demuxed data, for monitoring
    signal h_wr_en_sig           : std_logic;                        --header write enable signal, for monitoring
@@ -708,7 +533,20 @@ is
     signal To10GbeTxData2		: std_logic_vector(63 downto 0);
     signal To10GbeTxData_sig		: std_logic_vector(63 downto 0);
     signal send_data_pattern_cnt	: std_logic_vector(31 downto 0);
+    signal psn_out_sig			: std_logic_vector(63 downto 0);
+    signal every6seconds     	        : std_logic;
+    signal test_counter			: std_logic_vector(7 downto 0);
 
+    signal prn_run_sig   		: std_logic;
+    signal stat_start_sig 		: std_logic;
+    signal stat_rdy_sig			: std_logic;
+    signal Grs_stat_sig			: std_logic;
+
+    signal kill_enable_from_c167	: std_logic:='0';
+    signal kill_control	  		: std_logic:='0';
+    signal kill_counter 		: std_logic_vector(7 downto 0):=X"00";
+
+    signal PPS_PIC_Z1_sig   		: std_logic;
 
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
@@ -861,18 +699,19 @@ begin
    port map(
       sum_data   => sum_data_out_bb,
       C125       => C125,        
-      Grs        => Grs_sig,          --control reg 0, bit 2 from C167          
+      Grs        => Grs_sig,          --control reg 0, bit 2 from C167    
+      Grs_stat   => Grs_stat_sig,      
       chan       => c167_reg16_sig(5 downto 0), --control reg 2, bits 5 to 0 from C167       
       stat_msec  => c167_reg17_sig(6 downto 0), --control reg 3, bits 6 to 0 from C167       
-      prn_run    => c167_reg15_sig(0),          --control reg 1, bit 0 from C167     
-      stat_start => c167_reg15_sig(1),          --control reg 1, bit 1 from C167
+      prn_run    => prn_run_sig,          	--control reg 1, bit 0 from C167     
+      stat_start => stat_start_sig,          	--control reg 1, bit 1 from C167
       OneMsec    => OneMsec_pic_sig,     
       ecnt       => c167_reg34_sig,             --error counter reg, target 34        
       stat_p3    => stat_p3_sig, --statistics, +3, 3 bytes max
       stat_p1    => stat_p1_sig, --statistics, +1, 3 bytes max     
       stat_m1    => stat_m1_sig, --statistics, -1, 3 bytes max
       stat_m3    => stat_m3_sig, --statistics, +3, 3 bytes max
-      stat_rdy   => c167_reg42_sig(0),    
+      stat_rdy   => stat_rdy_sig,    
       td_sel     => td_sel_sig,      
       frm_sync   => frm_sync_sig,    
       td_out     => td_out_sig,  
@@ -884,6 +723,7 @@ begin
       
    );
    
+
    
    fdre_inputs: for i in 0 to 63 generate
    begin
@@ -919,28 +759,30 @@ begin
    timing_generator_0: timing_generator
    port map(
 
-          Grs                => Grs_sig,            -- ok (1=> reset)       IN
-          RunTG              => c167_reg14_sig(4),  -- ok                   IN
+          Grs                => Grs_sig,            
+          RunTG              => RunTG_ctrl_sig,     -- rising edge and TE used to start timing generator
           RunFm              => RunFm_sig,          --rising edge (and 1 PPS) used to start formatter and part of timing gen
-          C125               => C125,               -- ok                   IN
-          one_PPS_Maser      => PPS_Maser_sig,      -- ok                   IN
-          One_PPS_GPS        => PPS_GPS_sig,        -- ok                   IN
-          TE                 => TE_sig,             -- ok                   IN
-          SFRE_Init          => SFRE_init_sig,          --    IN
-          FrameSync          => FrameSync_sig,      -- needs to be added    OUT
+          C125               => C125,               
+          one_PPS_Maser      => PPS_Maser_sig,      
+          One_PPS_GPS        => PPS_GPS_sig,        
+          TE                 => TE_sig,             
+          SFRE_Init          => SFRE_init_sig,      -- to data formatter
+          FrameSync          => FrameSync_sig,      -- to data formatter
           FrameNum           => FrameNum_sig,       -- to data formatter
 --          epoch              => epoch_sig,          -- needs to be added    IN  replaced by SFRE_init
           SFRE               => SFRE_sig,           -- to data formatter
           OneMsec_pic        => OneMsec_pic_sig, 		-- 8-ns wide 1-msec pulse for data_interface
-          TIME0              => TIME0_sig,          -- 1 msec interrupt to C167
-          TIME1              => TIME1_sig,          -- 48 msec interrupt to C167
-          one_PPS_PIC        => PPS_PIC_sig,        -- ok                   OUT
-          one_PPS_Maser_OFF  => Maser_Offset_sig,   -- needs to be added    OUT
-          one_PPS_GPS_OFF    => GPS_Offset_sig,     -- needs to be added    OUT
-          TE_Err             => c167_reg3_sig(0),   -- needs to be added    OUT
-          reset_TE           => c167_reg0_sig(1),   -- ok                   IN      
+          TIME0              => TIME0_sig,          -- 48 msec interrupt to C167
+          TIME1              => TIME1_sig,          -- 1 msec interrupt to C167
+          one_PPS_PIC        => PPS_PIC_sig,        
+          one_PPS_Maser_OFF  => Maser_Offset_sig,   
+          one_PPS_GPS_OFF    => GPS_Offset_sig,     
+          one_PPS_TE_OFF     => TE_Offset_sig,          
+          TE_Err             => c167_reg3_sig(0),   
+          reset_TE           => c167_reg0_sig(1),         
           one_PPS_PIC_adv    => PPS_PIC_adv_sig,
           nchan              => nchan_sig,
+          samp_PPS_Ctr       => samp_PPS_Ctr_sig,
           tgtp0              => tgtp0_sig,
           tgtp1              => tgtp1_sig,
           tgtp2              => tgtp2_sig
@@ -959,7 +801,15 @@ begin
       threadID      => threadID_sig,    --header data from C167
       stationID     => stationID_sig,   --header data from C167
       magicWord     => magicWord_sig,   --header data from C167
-      statusWord    => statusWord_sig,  --header data from various sources
+      statusWord0   => statusWord0_sig,  --header data from various sources
+      statusWord1   => statusWord1_sig,  --header data from various sources
+      statusWord2   => statusWord2_sig,  --header data from various sources
+      statusWord3   => statusWord3_sig,  --header data from various sources
+      statusWord4   => statusWord4_sig,  --header data from various sources
+      statusWord5   => statusWord5_sig,  --header data from various sources
+      statusWord6   => statusWord6_sig,  --header data from various sources
+      statusWord7   => statusWord7_sig,  --header data from various sources
+
       CFIFO         => CFIFO,           --output rate clock ~143 MHz
       C125          => C125,            --correlator clock, 125 MHz
       FrameSync     => FrameSync_sig,   --frame sync pulse from timing gen 
@@ -983,10 +833,30 @@ begin
       d_rd_en       => d_rd_en_sig,         --data write enable signal, to monitor point      
       To10GbeTxData_1 => To10GbeTxData_1_sig, --Bit 1 of data sent to 10 GbE
       PPS_read      => PPS_read_sig,        --PIC 1PPS as captured by CFIFO
-      coll_out_C167 => coll_out_C167_sig    --header data captured at TE, for status to C167
+      coll_out_C167 => coll_out_C167_sig,    --header data captured at TE, for status to C167
+      psn_out       => psn_out_sig    --PSN out
+
    );
         
+-- status words connections
+    statusWord0_sig    <= VERSION
+                          & X"000" & "000" 
+                          & c167_reg14_sig(7 downto 6) -- data source selection
+                          & kill_enable_from_c167      --forces first 1.92 usec of data to zero
+                          & NOT c167_reg3_sig(4)       --delay controller error; 1 = error
+                          & c167_reg3_sig(3)           --CRC error probably indicating SEU; 1 = error
+                          & c167_reg3_sig(2)           --FPGA over-temperature; 1 = error
+                          & NOT LOCKED_sig             --MMCM for CFIFO; 1 = error
+                          & c167_reg3_sig(0)           --TE error; 1 = error
+                          & badFrame_sig;              --duplicates Word 0, bit 31 as a sanity check
+    statusWord1_sig    <= x"1" & GPS_Offset_sig;
+    statusWord2_sig    <= x"2" & Maser_Offset_sig;
+    statusWord3_sig    <= x"3" & TE_Offset_sig;    
+    statusWord4_sig    <= x"4000" & temperature;
       
+
+
+
     -- Output for DAC data; single ended so don't need to specify buffers here 
     --connect signals to ports
     DAC_CLK_p <= DAC_CLK_p_sig;
@@ -1034,7 +904,7 @@ begin
      port map (
        O  => PPS_PIC_p_sig, -- Diff_p output 
        OB => PPS_PIC_n_sig, -- Diff_n output 
-       I  => test_ctr(7) -- Buffer input  
+       I  => PPS_PIC_sig -- Buffer input  
      ); 
      
    Maser_buf: IBUFDS
@@ -1177,7 +1047,6 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
   --connect misc signals
   DONE           <= DONE_sig;          
   DLL            <= DLL_sig;  
---  PPS_PIC_sig <= test_ctr(0);
 
   -- C167 connections
   CD_T <=  NOT RnW;
@@ -1198,27 +1067,49 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
   Sl_errAck        <= '0';
   Sl_retry         <= '0';
   Sl_toutSup       <= '0';
-
-  --generate opb acknowledge signal
-  --Sl_xferAck <= (ackSigR AND NOT ackSigRZ1) OR (ackSigW AND NOT ackSigWZ1);
-  --xferAck_sig <= ackSigR OR ackSigW;
   
   --connect DAC signals
   DAC_IN_A_sig <= test_ctr(7 downto 4);
   DAC_IN_B_sig <= test_ctr(7 downto 4); 
   
    --C167-related mappings
-       RunTG_ctrl_sig    <= c167_reg14_sig(4);
-       RunFm_ctrl_sig    <= c167_reg14_sig(5);       
-       Grs_sig               <= c167_reg14_sig(3);    --General reset for all modules except data_formatter
-       GrsFm_sig             <= c167_reg15_sig(3);    --General reset for data_formatter to allow restart independent of data_formatter
+	
+	process(C125) is
+		begin 
+		if rising_edge(C125) then
+       			RunTG_ctrl_sig    	<= c167_reg14_sig(4);
+       			RunFm_ctrl_sig    	<= c167_reg14_sig(5);       
+       			Grs_sig           	<= c167_reg14_sig(3);    --General reset for all modules except data_formatter
+       			Grs_stat_sig	  	<= c167_reg14_sig(2);    --Dedicated reset signal for the "sum_data_chk_0" entity.
+       			GrsFm_sig         	<= c167_reg15_sig(3);    --General reset for data_formatter to allow restart independent of data_formatter
+       			prn_run_sig   	  	<= c167_reg15_sig(0);
+       			stat_start_sig    	<= c167_reg15_sig(1);    -- starts statistics aquisition.
+       			kill_enable_from_c167	<= c167_reg14_sig(1);    -- enables the kill feature (zeroing the first data samples to be sent out by the pic)	   	
+		end if;
+	end process; 
        
        --because of conflicts between the FPGA requirements and ICD with Computing,
-       --the DOUT bits of C167 control word must be mapped to td_sel and data_sel as follows
-       td_sel_sig(2)     <= ( NOT c167_reg14_sig(7) ) AND ( NOT c167_reg14_sig(6) );
-       td_sel_sig(1)     <=    c167_reg14_sig(7)      AND     c167_reg14_sig(6)    ;
-       td_sel_sig(0)     <=    c167_reg14_sig(6)                                   ;
-       data_sel_sig      <=    c167_reg14_sig(7)      OR      c167_reg14_sig(6)    ;  
+       --the DOUT bits of C167 control word must be mapped to td_sel and data_sel as follows                               ;
+
+       process(C125,c167_reg14_sig(7 downto 6)) is
+		begin
+		if(rising_edge(C125)) then
+			if kill_control='0' then
+				case c167_reg14_sig(7 downto 6) is
+					when "00"   => td_sel_sig <= "000";	--PRN, but NORMAL data will be selected, since data_sel_sig will "0"
+					when "01"   => td_sel_sig <= "001";	--INC
+					when "10"   => td_sel_sig <= "000";	--PRN
+					when "11"   => td_sel_sig <= "010";	--Zeroes
+					when others => td_sel_sig <= "000";	
+				end case;
+		       		data_sel_sig <= c167_reg14_sig(7) OR c167_reg14_sig(6);  
+			else
+				td_sel_sig 	<= "010";	--Zeroes
+		       		data_sel_sig	<= '1';
+			end if;			-- end if kill_control='0'
+		end if;				-- end if rising_edge(C125)
+       end process;	
+
        --C167 statistics mapping 
        c167_reg43_sig    <= stat_m3_sig(7  downto  0);
        c167_reg44_sig    <= stat_m3_sig(15 downto  8);
@@ -1232,18 +1123,22 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
        c167_reg55_sig    <= stat_p3_sig(7  downto  0);
        c167_reg56_sig    <= stat_p3_sig(15 downto  8);
        c167_reg57_sig    <= stat_p3_sig(23 downto 16);
+       c167_reg42_sig(0)    <= stat_rdy_sig;
+       
        --C167 header mapping
        PSN_init_sig       <= QREG12(32) & QREG12(33) & QREG12(34) & QREG12(35) & QREG12(36) & QREG12(37) & QREG12(38) & QREG12(39);
        badFrame_sig       <= c167_reg19_sig(0);   --C167 sets this bit based on latest data from CCC and local status info
        SFRE_init_sig      <= QREG12(28)(5 downto 0) & QREG12(29) & QREG12(30) & QREG12(31);
        refEpoch_sig       <= QREG12(24)(5 downto 0);
-       --FrameNum_init_sig  <= QREG12(25) & QREG12(26) & QREG12(27); not needed since frame num self-initializes at 1PPS
        nchan_sig       <= QREG12(20)(4 downto 0); 
        frameLength_sig    <= QREG12(21) & QREG12(22) & QREG12(23);
        threadID_sig       <= QREG12(16)(1 downto 0) & QREG12(17);
        stationID_sig      <= QREG12(18) & QREG12(19);
        magicWord_sig      <= QREG12(13) & QREG12(14) & QREG12(15);
-       statusWord_sig     <= X"000_0000" & '0' & NOT LOCKED_sig & c167_reg3_sig(0) & badFrame_sig;            
+
+
+
+            
        c167_reg11_r_sig   <= coll_out_C167_sig;         --captured header data
 --       epoch_sig          <= QREG12(28)(5 downto 0) & QREG12(29) & QREG12(30) & QREG12(31);  get rid of this duplicate!
 
@@ -1261,14 +1156,29 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
            
        --misc status
        c167_reg3_sig(1) <= LOCKED_sig;
-       c167_reg59_sig <= FrameNum_sig(7 downto 0);     
-       c167_reg60_sig <= SFRE_sig(7 downto 0);
-       c167_reg61_sig <= Maser_Offset_sig(7 downto 0);
-       c167_reg62_sig <= GPS_Offset_sig(7 downto 0);   
+       c167_reg4_sig    <= VERSION;       
+       c167_reg59_sig   <= FrameNum_sig_captured(7 downto 0);     
+       c167_reg60_sig   <= FrameNum_sig_captured(15 downto 8);     
+       c167_reg61_sig   <= FrameNum_sig_captured(23 downto 16);     
+       --c167_reg60_sig <= SFRE_sig(7 downto 0);
+       --c167_reg61_sig <= Maser_Offset_sig(7 downto 0);
+       c167_reg62_sig <= FrameNum_sig(7 downto 0);   
 
       --C167 interupt signals
       TIME0 <= TIME0_sig; --48 ms
       TIME1 <= TIME1_sig; --1 ms
+      
+      --multiplex captured 1-PPS signals to reg21
+      PPS_mux : process(C167_reg21_w_sig(1 downto 0), samp_PPS_Ctr_sig)
+      begin
+      	case c167_reg21_w_sig(1 downto 0) is
+				  when "00"   => c167_reg21_r_sig <= samp_PPS_Ctr_sig(7 downto 0);	--LSB, etc.
+				  when "01"   => c167_reg21_r_sig <= samp_PPS_Ctr_sig(15 downto 8);	--
+				  when "10"   => c167_reg21_r_sig <= samp_PPS_Ctr_sig(23 downto 16);--
+				  when "11"   => c167_reg21_r_sig <= "0000" & samp_PPS_Ctr_sig(27 downto 24);	--MS nibble
+				  when others => c167_reg21_r_sig <= "00000000";	
+			  end case;
+      end process PPS_mux;
       
   --signals to 10 GbE module
 
@@ -1327,9 +1237,6 @@ end process capture_TE;
 capture_ctrl : process (C125)  --capture critical control signals 
 begin
   if(rising_edge(C125)) then
-    RunTG_ctrl2_sig <= RunTG_ctrl_sig;
-    RunTG_ctrl3_sig <= RunTG_ctrl2_sig;
-    RunTG_sig <= RunTG_ctrl3_sig;
     RunFm_ctrl2_sig <= RunFm_ctrl_sig;    
     RunFm_ctrl3_sig <= RunFm_ctrl2_sig;    
     RunFm_sig <= RunFm_ctrl3_sig;    
@@ -1344,19 +1251,9 @@ end process capture_ctrl;
     begin
 
     if (OPB_Rst = '1') then
-        TimeAlign(15 downto 0) <= x"0000";
         SyncWord <= x"ACABFEED";
-        Legacy <= '0';
-        selInput <= x"F";       -- bottom 4 channels on
-        log2numchan <= "00010"; -- 4 channels total default
---        test_port_sig <= x"00000000";
+
     elsif rising_edge(epb_clk) then
-    
---        if (test_port_sig = x"FFFFFFFF") then
---          test_port_sig <= x"00000000";
---       else
---          test_port_sig <= test_port_sig + 1;  
---        end if;
 
         ackSigWZ1 <= ackSigW;
         ackSigRZ1 <= ackSigR;
@@ -1376,72 +1273,7 @@ end process capture_ctrl;
           if (OPB_RNW = '0' and C167_WE_sig='1') then				-- write 
 
             case (DeviceAddr(7 downto 2)) is
-
-            when "000000" => SyncWord <= DeviceDataIn;       				   --0x000
-            --when "000001" => c167_reg0_sig  <= DeviceDataIn(7 downto 0);       --0x001
-            --when "000010" => c167_reg1_sig  <= DeviceDataIn(7 downto 0);       --0x002
-            --when "000011" => c167_reg2_sig  <= DeviceDataIn(7 downto 0);       --0x003
-            --when "000100" => c167_reg3_sig  <= DeviceDataIn(7 downto 0);       --0x004			
-            --when "000101" => c167_reg4_sig  <= DeviceDataIn(7 downto 0);       --0x005
-            --when "000110" => c167_reg5_sig  <= DeviceDataIn(7 downto 0);       --0x006
-            --when "000111" => c167_reg6_sig  <= DeviceDataIn(7 downto 0);       --0x007
-            --when "001000" => c167_reg7_sig  <= DeviceDataIn(7 downto 0);       --0x008			
-            --when "001001" => c167_reg8_sig  <= DeviceDataIn(7 downto 0);       --0x009
-            --when "001010" => c167_reg9_sig  <= DeviceDataIn(7 downto 0);       --0x00A
-            --when "001011" => c167_reg10_sig <= DeviceDataIn(7 downto 0);       --0x00B
-            --when "001100" => c167_reg11_sig <= DeviceDataIn(7 downto 0);       --0x00C			
-            --when "001101" => c167_reg12_Q_sig <= DeviceDataIn(7 downto 0);       --0x00D
-            --when "001110" => c167_reg13_sig <= DeviceDataIn(7 downto 0);       --0x00E
-            --when "001111" => c167_reg14_sig <= DeviceDataIn(7 downto 0);       --0x00F
-            --when "010000" => c167_reg15_sig <= DeviceDataIn(7 downto 0);       --0x010
-            --when "010001" => c167_reg16_sig <= DeviceDataIn(7 downto 0);       --0x011
-            --when "010010" => c167_reg17_sig <= DeviceDataIn(7 downto 0);       --0x012
-            --when "010011" => c167_reg18_sig <= DeviceDataIn(7 downto 0);       --0x013
-            --when "010100" => c167_reg19_sig <= DeviceDataIn(7 downto 0);       --0x014			
-            --when "010101" => c167_reg20_sig <= DeviceDataIn(7 downto 0);       --0x015
-            --when "010110" => c167_reg21_sig <= DeviceDataIn(7 downto 0);       --0x016
-            --when "010111" => c167_reg22_sig <= DeviceDataIn(7 downto 0);       --0x017
-            --when "011000" => c167_reg23_sig <= DeviceDataIn(7 downto 0);       --0x018			
-            --when "011001" => c167_reg24_sig <= DeviceDataIn(7 downto 0);       --0x019
-            --when "011010" => c167_reg25_sig <= DeviceDataIn(7 downto 0);       --0x01A
-            --when "011011" => c167_reg26_sig <= DeviceDataIn(7 downto 0);       --0x01B
-            --when "011100" => c167_reg27_sig <= DeviceDataIn(7 downto 0);       --0x01C			
-            --when "011101" => c167_reg28_sig <= DeviceDataIn(7 downto 0);       --0x01D
-            --when "011110" => c167_reg29_sig <= DeviceDataIn(7 downto 0);       --0x01E
-            --when "011111" => c167_reg30_sig <= DeviceDataIn(7 downto 0);       --0x01F
-            --when "100000" => c167_reg31_sig <= DeviceDataIn(7 downto 0);       --0x020
-            --when "100001" => c167_reg32_sig <= DeviceDataIn(7 downto 0);       --0x021
-            --when "100010" => c167_reg33_sig <= DeviceDataIn(7 downto 0);       --0x022
-            --when "100011" => c167_reg34_sig <= DeviceDataIn(7 downto 0);       --0x023
-            --when "100100" => c167_reg35_sig <= DeviceDataIn(7 downto 0);       --0x024			
-            --when "100101" => c167_reg36_sig <= DeviceDataIn(7 downto 0);       --0x025
-            --when "100110" => c167_reg37_sig <= DeviceDataIn(7 downto 0);       --0x026
-            --when "100111" => c167_reg38_sig <= DeviceDataIn(7 downto 0);       --0x027
-            --when "101000" => c167_reg39_sig <= DeviceDataIn(7 downto 0);       --0x028			
-            --when "101001" => c167_reg40_sig <= DeviceDataIn(7 downto 0);       --0x029
-            --when "101010" => c167_reg41_sig <= DeviceDataIn(7 downto 0);       --0x02A
-            --when "101011" => c167_reg42_sig <= DeviceDataIn(7 downto 0);       --0x02B
-            --when "101100" => c167_reg43_sig <= DeviceDataIn(7 downto 0);       --0x02C			
-            --when "101101" => c167_reg44_sig <= DeviceDataIn(7 downto 0);       --0x02D
-            --when "101110" => c167_reg45_sig <= DeviceDataIn(7 downto 0);       --0x02E
-            --when "101111" => c167_reg46_sig <= DeviceDataIn(7 downto 0);       --0x02F
-            --when "110000" => c167_reg47_sig <= DeviceDataIn(7 downto 0);       --0x030
-            --when "110001" => c167_reg48_sig <= DeviceDataIn(7 downto 0);       --0x031
-            --when "110010" => c167_reg49_sig <= DeviceDataIn(7 downto 0);       --0x032
-            --when "110011" => c167_reg50_sig <= DeviceDataIn(7 downto 0);       --0x033
-            --when "110100" => c167_reg51_sig <= DeviceDataIn(7 downto 0);       --0x034			
-            --when "110101" => c167_reg52_sig <= DeviceDataIn(7 downto 0);       --0x035
-            --when "110110" => c167_reg53_sig <= DeviceDataIn(7 downto 0);       --0x036
-            --when "110111" => c167_reg54_sig <= DeviceDataIn(7 downto 0);       --0x037
-            --when "111000" => c167_reg55_sig <= DeviceDataIn(7 downto 0);       --0x038			
-            --when "111001" => c167_reg56_sig <= DeviceDataIn(7 downto 0);       --0x039
-            --when "111010" => c167_reg57_sig <= DeviceDataIn(7 downto 0);       --0x03A
-            --when "111011" => c167_reg58_sig <= DeviceDataIn(7 downto 0);       --0x03B
-            --when "111100" => c167_reg59_sig <= DeviceDataIn(7 downto 0);       --0x03C			
-            --when "111101" => c167_reg60_sig <= DeviceDataIn(7 downto 0);       --0x03D
-            --when "111110" => c167_reg61_sig <= DeviceDataIn(7 downto 0);       --0x03E
-            --when "111111" => c167_reg62_sig <= DeviceDataIn(7 downto 0);       --0x03F
-
+              when "000000" => SyncWord <= DeviceDataIn;       				   --0x000
               when others => null;
             end case;
             
@@ -1454,7 +1286,7 @@ end process capture_ctrl;
             when "000010" => DeviceDataOut <= c167_reg8_sig & c167_reg9_sig & c167_reg10_sig & c167_reg11_r_sig ;      			--registers 8,9,10,11
             when "000011" => DeviceDataOut <= c167_reg12_Q_sig & c167_reg13_sig & c167_reg14_sig & c167_reg15_sig ;      		--registers 12,13,14,15
             when "000100" => DeviceDataOut <= c167_reg16_sig & c167_reg17_sig & c167_reg18_sig & c167_reg19_sig ;      			--registers 16,17,18,19
-            when "000101" => DeviceDataOut <= c167_reg20_sig & c167_reg21_sig & c167_reg22_sig & c167_reg23_sig ;      			--registers 20,21,22,23
+            when "000101" => DeviceDataOut <= c167_reg20_sig & c167_reg21_r_sig & c167_reg22_sig & c167_reg23_sig ;      			--registers 20,21,22,23
             when "000110" => DeviceDataOut <= c167_reg24_sig & c167_reg25_sig & c167_reg26_sig & c167_reg27_sig ;      			--registers 24,25,26,27
             when "000111" => DeviceDataOut <= c167_reg28_sig & c167_reg29_sig & c167_reg30_sig & c167_reg31_sig ;      			--registers 28,29,30,31
             when "001000" => DeviceDataOut <= c167_reg32_sig & c167_reg33_sig & c167_reg34_sig & c167_reg35_sig ;      			--registers 32,33,34,35
@@ -1462,8 +1294,8 @@ end process capture_ctrl;
             when "001010" => DeviceDataOut <= c167_reg40_sig & c167_reg41_sig & c167_reg42_sig & c167_reg43_sig ;      			--registers 40,41,42,43
             when "001011" => DeviceDataOut <= c167_reg44_sig & c167_reg45_sig & c167_reg46_sig & c167_reg47_sig ;      			--registers 44,45,46,47
             when "001100" => DeviceDataOut <= c167_reg48_sig & c167_reg49_sig & c167_reg50_sig & c167_reg51_sig ;      			--registers 48,49,50,51			
-            when "001101" => DeviceDataOut <= c167_reg52_sig & c167_reg53_sig & c167_reg54_sig & c167_reg55_sig ;      			--registers 52,53,54,55			
-            when "001110" => DeviceDataOut <= c167_reg56_sig & c167_reg57_sig & c167_reg58_sig & c167_reg59_sig ;      			--registers 56,57,58,59
+            when "001101" => DeviceDataOut <= c167_reg52_sig & c167_reg53_sig & temperature(7 downto 0) & c167_reg55_sig ;      			--registers 52,53,54,55			
+            when "001110" => DeviceDataOut <= c167_reg56_sig & c167_reg57_sig & temperature(15 downto 8) & c167_reg59_sig ;      			--registers 56,57,58,59
             when "001111" => DeviceDataOut <= c167_reg60_sig & c167_reg61_sig & c167_reg62_sig & c167_reg63_sig ;      			--registers 60,61,62,63
             when others => DeviceDataOut <= (others => '0');
             end case;
@@ -1477,387 +1309,8 @@ end process capture_ctrl;
     end process RegisterAccess;
 
 -------------------------------------------------------------------------------
--------------------------------------------------------------------------------
-    -- build a status vector
---    status <= std_logic_vector(to_unsigned(vdifChCntr'pos(ccCntrState),8))
---                & "00" & FifoError & ValidFlag_epb
---                & std_logic_vector(to_unsigned(currCh,4));
 
 
--------------------------------------------------------------------------------
-    -- wait for time to start.
-    -- TimeCode is clocked with onePPS
-    -- ValidFlag indicates in test time
-    valid_proc: process(TimeCode_sig, DTMOnReg, DTMOffReg, epb_clk)
-    begin
-        if (TimeCode_sig >= DTMOnReg and TimeCode_sig < DTMOffReg) then
-            ValidFlag <= '1';
-        else
-            ValidFlag <= '0';
-        end if;
-        -- register it to epb clock domain
-        if rising_edge(epb_clk) then
-            ValidFlag_epb <= ValidFlag;
-        end if;
-    end process;
-
-    -- build a DTM status register
-    -- "00" : off/no command received
-    -- "01" : off/waiting to turn on
-    -- "10" : on
-    -- "11" : off/done
-    dtm_proc:  process(DTMOnReg, ValidFlag_epb, TimeCode_sig, DTMOffReg)
-    begin
-        if (DTMOnReg = X"00000000") then
-            DTMStatus   <= ValidFlag_epb & "00";    --ready (init)
-        elsif (TimeCode_sig < DTMOnReg) then
-            DTMStatus <= ValidFlag_epb & "10";      --waiting
-        elsif (TimeCode_sig < DTMOffReg) then
-            DTMStatus <= ValidFlag_epb & "01";      --transmitting
-        else --if (TimeCode_sig >= DTMOffReg) then
-            DTMStatus   <= ValidFlag_epb & "11";    --finished (rdy)
-        end if;
-    end process dtm_proc;
-
--------------------------------------------------------------------------------
-
-    -- resync the OnePPS
-    ppsclk : process(OnePPS, pps_sys)
-    begin
-        if (pps_sys = '1') then
-            pps1 <= '0';
-        elsif rising_edge(OnePPS) then
-            pps1 <= '1';
-        end if;
-    end process;
-
-    -- for use with the frame counter
-    ppssys : process(OPB_Rst, OPB_Clk)
-    begin
-        if OPB_Rst = '1' then
-            pps_sys <= '1';
-            pps2 <= '0';
-            pps3 <= '1';
-        elsif rising_edge(OPB_Clk) then
-            pps2 <= pps1;
-            pps3 <= NOT pps2;
-            pps_sys <= pps2 AND pps3;
-        end if;
-    end process;
-
-    -- for test mode
-    testmd : process(OPB_Clk)
-    begin
-        if rising_edge(OPB_Clk) then
-            if pps_sys = '1' then
-                TimeCntr <= (others => '0');
-            else
-                TimeCntr <= TimeCntr + 1;
-            end if;
-        end if;
-    end process;
--------------------------------------------------------------------------------
--------------------------------------------------------------------------------
-
-    -- adjust the delay according to the data path
-    -- VLBA code; comment out for now
---    dlySel : process (adc_clk)
---    begin
---        if rising_edge(adc_clk) then
---
---            -- set sample rate delay for all channels from chan(0)...
---            -- ...this code says all channels must be at the same sample
---            -- rate to get the data to align with external world.
---            if SampleRateA(0)(5 downto 0) = "00000" then
---                 selRate <= SampleRateA(0)(22 downto 21) OR
---                    (NOT SampleRateA(0)(23) & NOT SampleRateA(0)(23));
---            else
---                 selRate <= "11";
---            end if;
---
---
---          case(selRate)is
---                when "10" =>     -- 1x data rate (128MHz)
---                    IntDelay <= WVR_DELAY;
---                when "01" =>    -- 2x data rate (64MHz)
---                    IntDelay <= WVR_DELAY + MUX_DELAY + FIR_DELAY;
---                when "00" =>    -- 4x data rate (32MHz)
---                    IntDelay <= WVR_DELAY + MUX_DELAY + FIR_DELAY + 1;
---                when others =>    -- more than 4x data rate (16MHz or less)
---                    IntDelay <= WVR_DELAY + CIC_DELAY + MUX_DELAY + FIR_DELAY;
---            end case;
---
---            TotalDelay <= TimeAlign_adc + IntDelay;
---        end if;
---    end process dlySel;
-
-    -- wait for start time: 'ValidFlag' signals the start time for test
-    dlySt : process (adc_clk)
-    begin
-        if rising_edge(adc_clk) then
-            if (ValidFlag = '0') then
-                OnePPSDelayCount <= x"0000";
-                ValidFlag_adc <= '0';
-            elsif (OnePPSDelayCount <= TotalDelay) then
---                if (DataRdy(0) = '1') then    ##comment out to get rid of DataRdy port; eventually this whole process will disappear
-                if (ackSigW = '1') then
-                    OnePPSDelayCount <= OnePPSDelayCount + 1;
-                end if;
-            else
-                ValidFlag_adc <= '1';
-            end if;
-        end if;
-    end process dlySt;
-
--------------------------------------------------------------------------------
-    -- Frame Counter - different end count depending on decimation rate.
-    -- Use OnePPS and EndOfPacket flag to reset the Frame Counter or count up.
-    -- VLBA code; comment out for now; delete later
---    fctr : process(OPB_Clk)
---    begin
---        if rising_edge(OPB_Clk) then
---            if (pps_sys = '1')then
---                arm <= '1';
---            elsif (arm = '1') AND (ccCntrState = ccStartWait) then
---                if (ppsFinish = '0') then --1st frame of this second
---                    for i in 0 to (nch-1) loop
---                        FrameNum(i) <=  (others => '0');
---                    end loop;
---                    arm <= '0';
---                -- else clear after this frame
---               end if;
---            elsif (ccCntrState = ccIncFrame) then
---                FrameNum(currCh) <= FrameNum(currCh) + 1;
---            end if;
---        end if;
---    end process;
-
--------------------------------------------------------------------------------
--- change channels each time the fifo has been read 625 times in formatter
--- VLBA code; comment out for now; delete later
---    chcntr : process(OPB_Clk)
---    begin
---        if rising_edge(OPB_Clk) then
---            if (ValidFlag_sys = '0') then
---                currCh <= 0;
---                FmtrEna <= '0';
---                ccCntrState <= ccStartWait;
---                ppsFinish <= '0';
---            else
---                case(ccCntrState) is
---                    when ccStartWait =>     -- wait for start of frame
---                        if prog_full(0) = '0' then
---                            ccCntrState <= ccFifoFull;
---                        end if;
---                    when ccFifoFull =>
---                        if prog_full(currCh) = '0' then -- send a packet for
---                            ccCntrState <= ccWaitFE1;   -- this channel
---                            FmtrEna <= '1';
---                        else
---                            ccCntrState <= ccIncCh;     -- go to next channel
---                        end if;
---                        ppsFinish <= '0';
---                    when ccWaitFE1 =>
---                        if FifoEna = '1' then
---                            ccCntrState <= ccWaitFE0;   -- packet tx started
---                        end if;
---                    when ccWaitFE0 =>
---                        if FifoEna = '0' then
---                            ccCntrState <= ccIncFrame;  -- packet tx ended
---                            FmtrEna <= '0';
---                        end if;
---                    when ccIncFrame =>      -- frame counter for this channel
---                        ccCntrState <= ccIncCh;
---                    when ccIncCh =>
---                        if(currCh < nch-1) then
---                            currCh <= currCh + 1;
---                            ccCntrState <= ccFifoFull;
---                        else
---                            currCh <= 0;
---                            ccCntrState <= ccStartWait; -- next frame
---                            if(arm = '1')  then
---                                ppsFinish <= NOT ppsFinish;
---                            end if;--tell FrameNum whether or not to clear
---                        end if;
---                    when others =>  --huh?
---                        ccCntrState <= ccStartWait;
---                end case;
---            end if;
---        end if;
---    end process;
--------------------------------------------------------------------------------
--------------------------------------------------------------------------------
--- HdrAry was used in VLBA design; comment out for now; delete later
---HdrAry.VERS     <= "001";
---HdrAry.FrameLen <= x"000275"; --629d=units of 8bytes=5032bytes,including header
---HdrAry.EDV      <= x"02";
---HdrAry.MajRev   <= REV_MAJOR_INT(3 downto 0);
---HdrAry.MinRev   <= REV_MAJOR_FRAC(3 downto 0);
---HdrAry.Persnlity<= P_TYPE;
-
--- fill in the header block each time the channel changes; from VLBA design; comment out
---    HdrBlk(0) <= HdrAry.InvFlg & HdrAry.Legacy & HdrAry.SFRE &
---                    HdrAry.RefEpoch & HdrAry.FrameNum;
---    HdrBlk(1) <= HdrAry.VERS & HdrAry.LogCh & HdrAry.FrameLen &
---                    HdrAry.CmplxFlg & HdrAry.Bits_Samp &
---                    HdrAry.ThreadID & HdrAry.StationID;
---    HdrBlk(2) <= HdrAry.EDV & HdrAry.SRU &
---                    HdrAry.SYNC;
---    HdrBlk(3) <= HdrAry.LoifFtw &
---                    "1111" & HdrAry.DBEnum & HdrAry.IFnum & HdrAry.SubBand &
---                    HdrAry.ESideBand & HdrAry.MajRev & HdrAry.MinRev &
---                    HdrAry.Persnlity;
-
--------------------------------------------------------------------------------
-    -- seconds from epoch is reported in header instead of TimeCode
-    epochcnt : process(OPB_Rst, OPB_Clk)
-    begin
-        if (OPB_Rst = '1') then
-            EpochSeconds <= (others => '0');
-        elsif rising_edge(OPB_Clk) then
-            if pps_sys = '1' then
-                EpochSeconds <= EpochSeconds + 1;
-            elsif EpochSecSet /= EpochSecReg then
-                EpochSeconds <= EpochSecSet;
-                EpochSecReg <= EpochSecSet;
-            end if;
-        end if;
-    end process;
---SecFromRefEpoch <= EpochSeconds(29 downto 0);       -- rename
--------------------------------------------------------------------------------
-    -- change clock domains to OPB_Clk; from VLBA design; comment out for now
---    syncsys : process(OPB_Clk)
---    begin
---        if rising_edge(OPB_Clk) then
---            ValidFlag_sys       <= ValidFlag;
---            if ccCntrState = ccFifoFull then
---                HdrAry.InvFlg       <= (NOT ValidFlag) OR FifoError;
---                HdrAry.Legacy       <= Legacy;
---                HdrAry.SFRE         <= EpochSeconds;
---                HdrAry.RefEpoch     <= RefEpoch;
---                HdrAry.LogCh        <= log2numchan;
---                HdrAry.FrameNum     <= FrameNum(currCh);signal c167_reg34_sig     :std_logic_vector(7 downto 0) := X"0c";  --for MSB of PPS_TE_Off
---                HdrAry.CmplxFlg     <= ComplexFlags(currCh);
---                HdrAry.Bits_Samp    <= Bits_SampA(currCh);
---                HdrAry.ThreadID     <= std_logic_vector(to_unsigned(currCh,10));
---                HdrAry.StationID    <= StationID;
---                HdrAry.SRU          <= SampleRateA(currCh);
---                HdrAry.SYNC         <= SyncWord;
---                --HdrAry.LoifFtw      <= LoifFtwA(currCh);
---                HdrAry.DBEnum       <= DBEnum;
---                HdrAry.IFnum        <= IFnumA(currCh);
---                HdrAry.SubBand      <= SubBandA(currCh)(2 downto 0);
---                HdrAry.ESideBand    <= ESideBand(currCh);
---                if TestMode = '0' then
---                    HdrAry.LoifFtw <= LoifFtwA(currCh);
---                else
---                    HdrAry.LoifFtw <= TimeCntr & LoifFtwA(currCh)(15 downto 0);
---                end if;
---            end if;
---        end if;
---    end process;
-
--------------------------------------------------------------------------------
-    -- change clock domains to adc_clk
-    syncadc : process(OPB_Rst, adc_clk)
-    begin
-        if OPB_Rst = '1' then
-            DTMOnReg            <= (others => '0');
-            DTMOffReg           <= (others => '1');
-            TimeAlign_adc       <= (others => '0');
-        elsif rising_edge(adc_clk) then
-            DTMOnReg            <= TimeSlot1On;
-            DTMOffReg           <= TimeSlot1Off;
-            TimeAlign_adc       <= TimeAlign;
-
-            for i in 0 to (nch-1) loop
-                -- turn channel off or on
-                ValidA(i) <= ValidFlag_adc AND selInput(i);
-                -- choose which fifo is being read now
-                if currCh = i then
-                    rdFifoEna(i) <= FifoEna;
-                else
-                    rdFifoEna(i) <= '0';
-                end if;
-           end loop;
-
-        end if;
-    end process;
-
-
--------------------------------------------------------------------------------
--- Input select and enable
---  selIn    : for i in 0 to nch-1 generate
---    chSel   : vdif_input_sel
---    port map(
---        wrClk       =>  adc_clk,        --: in std_logic;
---        rdClk       =>  OPB_Clk,        --: in std_logic;
---        reset       =>  OPB_Rst,            --: in std_logic;
---        valid       =>  ValidA(i),      --: in std_logic;
---        dataRdy     =>  DataRdy(i),     --: in std_logic;
---        rdFifoEna   =>  rdFifoEna(i),   --: in std_logic;
---        cplxFlg     =>  ComplexFlags(i),--: in std_logic;
---        numBit      =>  Bits_SampA(i),  --: in std_logic_vector(4 downto 0);
-
---        data_in     =>  dataIn(i*16+15 downto i*16),      --: in std_logic_vector(15 downto 0);
-
---        full        =>  full(i),        --: out std_logic
---        prog_full   =>  prog_full(i),   --: out std_logic;
---        data_out    =>  data_out(i)     --: out std_logic_vector(63 downto 0)
---    );
---    end generate;
-
-    ckff: process(OPB_Clk, full, ValidFlag_sys)
-    begin
-        if rising_edge(OPB_Clk) then
-            if full /= x"0" then        -- compile for 4 channels
-                FifoError <= '1';       -- latch for duration of test
-            elsif ValidFlag_sys = '0' then
-                FifoError <= '0';       -- clear once this test is over
-            end if;
-        end if;
-    end process;
-
--------------------------------------------------------------------------------
---Formatter
---CurrData <= data_out(currCh);
-
-    --format a single channel when FifoRdy says there are 625 words in fifo
---    fmt_ch : vdif_formatter
---        port map
---        (
---            Clk         =>  OPB_Clk,            --: in std_logic;
---            Grs         =>  OPB_Rst,                --: in std_logic;
---            MstrEna     =>  FmtrEna,            --: in std_logic;
---            Header      =>  HdrBlk,             --: in vdifHdr;
---            FifoData    =>  CurrData,           --: in slvector(63 downto 0);
-
---            FifoEna             => FifoEna,     --: out std_logic;
---            To10GbeTxData       => To10GbeTxData,   --: out slv(63 downto 0);
---            To10GbeTxDataValid  => To10GbeTxDataValid,  --: out std_logic;
---            To10GbeTxEOF        => To10GbeTxEOF --: out std_logic
---       );
-
-
--------------------------------------------------------------------------------
---Data capture
-
---    --synchronously capture incoming differential data
---    data_capt : vdif_data
---      generic map (
---        SAMPLES_IN => 32)
---      port map
---      (
---        clk_p      => clk_p,
---        clk_n      => clk_n,
---        sum_data_p => sum_data_p,
---        sum_data_n => sum_data_n,
---        clk_out    => clk_out,
---        data_out   => sum_out
---        );
-
-
--------------------------------------------------------------------------------
 --C167 Interface
 
   c167 : c167_interface
@@ -1868,7 +1321,6 @@ end process capture_ctrl;
 		   c167_data_I => CD_I, 	-- bus connection with the c167, bidirectional
 		   c167_data_O => CD_O, 	-- bus connection with the c167, bidirectional
 		   data_from_cpu => data_from_cpu_sig,	-- data_from_CPU, must be used together with C167_WR_EN(X) being 0<=X<=31
---		   data_to_cpu => SyncWord(7 downto 0), 		-- data_to_CPU, must be used together with C167_RR_EN(X) being 0<=X<=31
 		   data_to_cpu => data_to_cpu_sig, 		-- data_to_CPU, must be used together with C167_RR_EN(X) being 0<=X<=31		   
 --		   C167_RD_EN => C167_RD_EN_sig,			-- Read enable signals, they must be individually connected to the tri-state controller associated to teh desired signals
 --		   C167_WR_EN	=> C167_Wr_EN_sig,	-- Write enable signals, they must be individually connected to the "clock enable" associated to the addressed register.
@@ -1877,7 +1329,7 @@ end process capture_ctrl;
 		   C167_CLK	=> C167_CLK_sig				-- C167 clock signal
 	);
 	
-	--process for testing C167 interface
+	--process for reading C167 interface
 	C167_reg_read: process(C167_CLK_sig, C167_addr_sig)
 	begin
 	   	case (C167_ADDR_sig) is
@@ -1900,7 +1352,7 @@ end process capture_ctrl;
         when X"12" => data_to_cpu_sig <= c167_reg18_sig;
         when X"13" => data_to_cpu_sig <= c167_reg19_sig;
         when X"14" => data_to_cpu_sig <= c167_reg20_sig;
-        when X"15" => data_to_cpu_sig <= c167_reg21_sig;
+        when X"15" => data_to_cpu_sig <= c167_reg21_r_sig;
         when X"16" => data_to_cpu_sig <= c167_reg22_sig;
         when X"17" => data_to_cpu_sig <= c167_reg23_sig;
         when X"18" => data_to_cpu_sig <= c167_reg24_sig;
@@ -1955,8 +1407,7 @@ end process capture_ctrl;
 	   	    case (C167_ADDR_sig) is
 			    when X"00" => c167_reg0_sig   		<= data_from_cpu_sig;     
 			    when X"01" => c167_reg1_sig   		<= data_from_cpu_sig;   
-			    when X"02" => c167_reg2_sig   		<= data_from_cpu_sig;             
-			    when X"04" => c167_reg4_sig   		<= data_from_cpu_sig;  
+			    when X"02" => c167_reg2_sig   		<= data_from_cpu_sig;               
 			    when X"0B" => c167_reg11_w_sig   		<= data_from_cpu_sig;
 			    when X"0D" => c167_reg13_sig  		<= data_from_cpu_sig;
 			    when X"0E" => c167_reg14_sig  		<= data_from_cpu_sig;
@@ -1966,7 +1417,7 @@ end process capture_ctrl;
 			    when X"12" => c167_reg18_sig  		<= data_from_cpu_sig;
 			    when X"13" => c167_reg19_sig  		<= data_from_cpu_sig;
 			    when X"14" => c167_reg20_sig  		<= data_from_cpu_sig;
-			    when X"15" => c167_reg21_sig  		<= data_from_cpu_sig;
+			    when X"15" => c167_reg21_w_sig 		<= data_from_cpu_sig;
 			    when X"16" => c167_reg22_sig  		<= data_from_cpu_sig;
 			    when X"17" => delay_reg_address  		<= data_from_cpu_sig(5 downto 0);	
 			    when X"19" => int_delay_reg_address  	<= data_from_cpu_sig(5 downto 0);	
@@ -2177,13 +1628,9 @@ end process capture_ctrl;
             data_in(26) => sum_data(52),
             data_in(27) => sum_data(54),
             data_in(28) => sum_data(56),
-            data_in(29) => sum_data(58),
---            data_in(30) => sum_data(60),
---            data_in(31) => sum_data(62),       --Sum Data LSB channel 31
-
+            data_in(29) => stat_start_sig,
             data_in(30) => To10GbeTxDataValid_sig,	--0x1E
             data_in(31) => To10GbeTxEOF_sig,		--0x1F
-
             data_in(32) => TE_sig,             --0x20
             data_in(33) => AUXTIME_sig,            
             data_in(34) => PPS_Maser_sig,
@@ -2193,7 +1640,7 @@ end process capture_ctrl;
             data_in(38) => ditp0_sig,          --init_ctr from data interface,0x26
             data_in(39) => ditp1_sig,          -- ctr LSB, 0x27
             data_in(40) => ditp2_sig,
-            data_in(41) => open,
+            data_in(41) => every6seconds,
             data_in(42) => stat_p1_sig(0),
             data_in(43) => stat_p1_sig(2),
             data_in(44) => stat_p1_sig(6),  --prg(2) XOR prg(0)
@@ -2215,7 +1662,7 @@ end process capture_ctrl;
             data_in(60) => apply_sig,           
             data_in(61) => CFIFO_Z1_sig, 
             data_in(62) => To10GbeTxData2(0),          
-            data_in(63) => RunTG_sig,   --RunTG, address 0x3f
+            data_in(63) => open,   --address 0x3f
             data_out => ROACHTP(0)	     
   	     );
 	     
@@ -2255,7 +1702,7 @@ end process capture_ctrl;
             data_in(28) => sum_data(57),
             data_in(29) => sum_data(59),
             data_in(30) => sum_data(61),
-            data_in(31) => sum_data(63),        --Sum Data MSB channel 31
+            data_in(31) => kill_control,        --Sum Data MSB channel 31
             data_in(32) => DATA2_sig(0),
             data_in(33) => DATA2_sig(1),
             data_in(34) => DATA2_sig(2),
@@ -2272,11 +1719,11 @@ end process capture_ctrl;
             data_in(45) => TIME0_sig,             --48-msec interrupt to C167, addr 0x2d
             data_in(46) => TIME1_sig,             --1-msec interrupt to C167, addr 0x2e
             data_in(47) => PPS_PIC_sig,           --internal 1 PPS, addr 0x2f
-            data_in(48) => c167_reg14_sig(4),     --RunTG control signal, addr 0x30
+            data_in(48) => RunTG_ctrl_sig,     --RunTG control signal, addr 0x30
             data_in(49) => sum_ch_demux_0_sig,    --demultiplexed data to fifo,LSB, addr 0x31
             data_in(50) => h_wr_en_sig,           --header write enable, address 0x32 
             data_in(51) => d_wr_en_sig,           --data write enable, address 0x33
-            data_in(52) => FDOF_sig,              --data fifo overflow, address 0x34
+            data_in(52) => stat_rdy_sig,          --statistics ready, address 0x34
             data_in(53) => FDPE_sig,              --data fifo program empty, low after 1000 words in memory,address 0x35
             data_in(54) => h_rd_en_sig,           --header read enable, addr 0x36
             data_in(55) => d_rd_en_sig,           --data read enable, addr 0x37            
@@ -2287,16 +1734,15 @@ end process capture_ctrl;
             data_in(60) => tgtp2_sig,                 --sum_in_bit_Z1 from data interface
             data_in(61) => To10GbeTxDataValid_sig,
             data_in(62) => To10GbeTxEOF_sig,
-            data_in(63) => '1',
+            data_in(63) => every6seconds,
             data_out => ROACHTP(1)            
   	     );  	
   	     
 --ROUTB(3 downto 0) test points  	          
-  ROUTB_sig(0) <= RunFm_sig;   --test_ctr(7);  --JR1-5
---  ROUTB_sig(1) <= test_ctr_fifo(7);
-  ROUTB_sig(1) <= FrameSync_sig;                 --JR1-7
-  ROUTB_sig(2) <= To10GbeTxDataValid_sig;        --JR1-9
-  ROUTB_sig(3) <= To10GbeTxEOF_sig;              --JR1-11
+  ROUTB_sig(0) <= PPS_PIC_sig;   --test_ctr(7);  --JR1-5
+  ROUTB_sig(1) <= PPS_Maser_sig;                 --JR1-7
+  ROUTB_sig(2) <= PPS_GPS_sig;        --JR1-9
+  ROUTB_sig(3) <= TE_sys_sig;              --JR1-11
 	
 --process for generating test frequencies
 get_tst_freq: process(adc_clk)
@@ -2650,4 +2096,71 @@ test_integer_delay: process(C125) is
 	end process;
 
 
+
+FDCE_TE : FDCE
+port map (
+Q => TE_Z1_sig, 	-- Data output
+C => C125, 		-- Clock input
+CE => '1', 		-- Clock enable input
+CLR => '0', 		-- Asynchronous clear input
+D => TE_sig 		-- Data input
+);
+
+process(C125) is  
+  begin
+	  if TE_sig='1' and TE_Z1_sig='0' and rising_edge(C125) then
+		  FrameNum_sig_captured <= FrameNum_sig(23 downto 0);
+	  end if; 
+end process;
+
+
+process(PPS_PIC_sig,C125) is
+
+        begin
+	if rising_edge(C125) then
+		if PPS_PIC_sig='1' then
+			test_counter <= test_counter + '1';
+		end if;
+		if test_counter=x"06" or RunTG_ctrl_sig='0' then
+			test_counter <= x"00";
+		end if;
+		if test_counter=X"00" then
+			every6seconds <='1';
+		else
+			every6seconds <='0';
+		end if;
+	end if; 
+end process;
+
+
+FDCE_PPS : FDCE
+port map (
+Q => PPS_PIC_Z1_sig, 	-- Data output
+C => C125, 		-- Clock input
+CE => '1', 		-- Clock enable input
+CLR => '0', 		-- Asynchronous clear input
+D => PPS_PIC_sig 	-- Data input
+);
+
+process(C125) is
+begin
+	if rising_edge(C125) then
+		if kill_enable_from_c167='1' then
+			if PPS_PIC_sig='1' and PPS_PIC_Z1_sig='0' then
+				kill_counter <= X"00";			-- reset counter upon PPS rising edge
+			end if;						-- end if TE_sig='1' and TE_Z1_sig='0'
+
+			if kill_counter < X"F0" then
+				kill_counter <= kill_counter + '1';
+				kill_control <= '1';
+			else
+				kill_control <= '0';
+			end if;						-- end if kill_counter < X"F0"
+		else
+			kill_control <= '0';
+		end if;							-- end if kill_enable_from_c167='1' 
+	end if;								-- end if rising_edge(C125)
+end process;
+
 end architecture vdif_arch;
+
