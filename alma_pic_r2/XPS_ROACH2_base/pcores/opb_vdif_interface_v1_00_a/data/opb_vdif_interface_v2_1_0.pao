@@ -27,4 +27,5 @@ lib opb_vdif_interface_v1_00_a header_write_control.vhd vhdl
 lib opb_vdif_interface_v1_00_a data_write_ctrl.vhd vhdl
 lib opb_vdif_interface_v1_00_a fifo_66x2k_behav.vhd vhdl
 lib opb_vdif_interface_v1_00_a read_control.vhd vhdl
-
+lib opb_vdif_interface_v1_00_a bus_multiplexer.vhd vhdl
+lib opb_vdif_interface_v1_00_a bits_changer.vhd vhdl
