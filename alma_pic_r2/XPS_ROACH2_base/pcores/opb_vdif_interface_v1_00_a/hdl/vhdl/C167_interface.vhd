@@ -9,8 +9,8 @@ use ieee.std_logic_arith.all;
 
 -------------------------------------------------------
 -- This component is used to  interact with the C167 processor.
--- $Id: C167_interface.vhd,v 1.5 2013/05/16 16:58:35 asaez Exp $
--- $Id: $
+-- $Id: C167_interface.vhd,v 1.7 2013/12/05 18:01:17 rlacasse Exp $
+-- $Id: C167_interface.vhd,v 1.7 2013/12/05 18:01:17 rlacasse Exp $
 entity c167_interface is
 	port(
        uclk     			: in std_logic; 											-- processor clock		   
