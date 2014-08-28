@@ -3,13 +3,13 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use IEEE.STD_LOGIC_UNSIGNED.ALL;
---Library UNISIM;
---use UNISIM.vcomponents.all;
+Library UNISIM;
+use UNISIM.vcomponents.all;
 
 -------------------------------------------------------
 -- This component generates required timing signals and monitors internally 
 -- generated signals against external references
--- $Id: timing_generator.vhd,v 1.6 2014/04/11 14:03:41 rlacasse Exp $
+-- $Id: timing_generator.vhd,v 1.10 2014/08/07 21:18:37 asaez Exp $
 
 entity timing_generator is
 port(
@@ -40,6 +40,7 @@ port(
    one_PPS_PIC       : out std_logic; 											-- for monitoring internal 1 PPS (LVDS output)
    one_PPS_MASER_OFF : out std_logic_vector(27 downto 0); 	-- maser vs local 1PPS offset
    one_PPS_GPS_OFF   : out std_logic_vector(27 downto 0); 	-- gps vs local 1PPS offset
+   one_PPS_TE_OFF    : out std_logic_vector(27 downto 0); 	-- TE vs local 1PPS offset, measured at seconds 0, 6, ...
    
 	 -- latched high when internal and external TE are not coincident
    -- cleared to low by reset_te bit = 1 from uP_interface
@@ -47,6 +48,7 @@ port(
    reset_te        		: in  std_logic;														-- high resets TE_Err
    one_PPS_PIC_adv    : out std_logic;		
    nchan              : in std_logic_vector(4 downto 0);    --log base 2 of number of channels
+   samp_PPS_Ctr       : out std_logic_vector(27 downto 0);  --the 1PPS counter sampled at the TE rising edge   
    tgtp0              : out std_logic;  --general purpose test points
    tgtp1              : out std_logic;
    tgtp2              : out std_logic         
@@ -112,7 +114,8 @@ component one_pps_pic_gen
       TE               : in std_logic;   -- TE connects to a signal derived from TE_p
       C125             : in std_logic;   -- 125 MHz clock
       ONE_PPS_PIC      : out std_logic;  -- internal 1PPS, high for one C125 clock 
-      ONE_PPS_PIC_Adv  : out std_logic   -- high for one clock exactly one clock before 1PPS_PIC
+      ONE_PPS_PIC_Adv  : out std_logic;  -- high for one clock exactly one clock before 1PPS_PIC
+      samp_PPS_Ctr     : out std_logic_vector(27 downto 0)  --the 1PPS counter sampled at the TE rising edge         
    );
 end component;
 
@@ -130,12 +133,19 @@ signal one_pps_pic_sig      : std_logic;
 signal one_pps_pic_adv_sig  : std_logic;
 signal nchan_sig            : std_logic_vector(4 downto 0);
 signal TE_pic_sig           : std_logic;
+signal TE_input_sig         : std_logic;
+signal TE_input_sig_z1      : std_logic;
 signal OneMsec_pic_sig      : std_logic;
+signal samp_PPS_Ctr_sig     : std_logic_vector(27 downto 0);
 signal dummy                : std_logic_vector(1 downto 0);
 signal tgtp0_sig            : std_logic;
 signal tgtp1_sig            : std_logic;
 signal tgtp2_sig            : std_logic;
-
+signal test_counter	    : std_logic_vector(7 downto 0);
+signal every6seconds        : std_logic;
+signal every6seconds_Z1     : std_logic;
+signal one_PPS_TE_OFF_sig   : std_logic_vector(27 downto 0):=X"000_0000"; 
+signal TE_OFF_counter_sig   : std_logic_vector(27 downto 0):=X"000_0000"; 
 
 begin
 
@@ -143,6 +153,8 @@ begin
 	OneMsec_pic <= OneMsec_pic_sig;
 	one_PPS_PIC <= one_pps_pic_sig ;						-- one pps internally generated signal (component one_pps_pic_gen)
 	one_PPS_PIC_adv <= one_pps_pic_adv_sig; 				-- to the test points 	
+  samp_PPS_Ctr <= samp_PPS_Ctr_sig;
+  one_PPS_TE_OFF <= one_PPS_TE_OFF_sig;
 	
   sfre_gen_0: sfre_gen
       port map (
@@ -187,7 +199,8 @@ begin
 			TE               => TE,                  -- input, connected to the TE, external TE
 			C125             => C125,                -- input, general 125MHz clock
 			ONE_PPS_PIC      => one_pps_pic_sig,     -- output, internal 1PPS, high for one C125 clock 
-			ONE_PPS_PIC_Adv  => one_pps_pic_adv_sig  -- output, high for one clock exactly one clock before 1PPS_PIC
+			ONE_PPS_PIC_Adv  => one_pps_pic_adv_sig, -- output, high for one clock exactly one clock before 1PPS_PIC
+			samp_PPS_Ctr     => samp_PPS_Ctr_sig
     );		
 	
 	one_PPS_Maser_Chk_0: one_PPS_Maser_Chk			
@@ -207,5 +220,71 @@ begin
       C125               => C125,            -- input, general 125MHz clock
       one_PPS_MASER_OFF  => one_PPS_GPS_OFF  -- output, GPS vs local 1PPS offset
          );		 
+
+
+
+
+FDCE_1 : FDCE
+port map (
+Q => every6seconds_Z1, 	-- Data output
+C => C125, 		-- Clock input
+CE => '1', 		-- Clock enable input
+CLR => '0', 		-- Asynchronous clear input
+D => every6seconds 	-- Data input
+);
+
+TE_input_sig <= TE;
+
+FDCE_2 : FDCE
+port map (
+Q => TE_input_sig_z1, 	-- Data output
+C => C125, 		-- Clock input
+CE => '1', 		-- Clock enable input
+CLR => '0', 		-- Asynchronous clear input
+D => TE_input_sig 	-- Data input
+);
+
+
+
+process(C125) is
+	begin
+	if rising_edge(C125) then
+		if TE_input_sig ='1' and TE_input_sig_z1='0' then
+			TE_OFF_counter_sig <= X"000_0000";
+		else
+			TE_OFF_counter_sig <= TE_OFF_counter_sig + '1';
+		end if;
+	end if;
+end process;
+
+
+process(one_pps_pic_sig,C125) is
+        begin
+	if rising_edge(C125) then
+		if one_pps_pic_sig='1' then
+			test_counter <= test_counter + '1';
+		end if;
+		if test_counter=x"06" or RunTG='0' then
+			test_counter <= x"00";
+		end if;
+		if test_counter=X"00" then
+			every6seconds <='1';
+		else
+			every6seconds <='0';
+		end if;
+	end if; 
+end process;
+
+process(C125) is
+	begin
+	if rising_edge(C125) then
+		if every6seconds='1' and every6seconds_Z1='0' then
+			one_PPS_TE_OFF_sig <= TE_OFF_counter_sig;
+		end if;
+	end if;
+end process;
+
+
+
 
 end comportamental;
