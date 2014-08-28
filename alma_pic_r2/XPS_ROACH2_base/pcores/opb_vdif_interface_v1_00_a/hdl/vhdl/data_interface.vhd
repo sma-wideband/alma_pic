@@ -8,7 +8,7 @@ use IEEE.STD_LOGIC_UNSIGNED.ALL;
 
 -- This entity controls the payload to be added in the VDIF packet
 
--- # $Id: data_interface.vhd,v 1.4 2014/06/11 19:33:31 rlacasse Exp $
+-- # $Id: data_interface.vhd,v 1.5 2014/07/24 22:36:14 asaez Exp $
 
 entity data_interface is
 port(
@@ -22,6 +22,9 @@ port(
 
    --Grs is the general reset; a one causes various subsystems to go to initial state
    Grs    : in std_logic;
+
+   --Grs_stat is the reset signal just for the statistics
+   Grs_stat : in std_logic;
 
    --***I/O mainly for sum data checker***--
    --which IF channel to test; bit 0 select MS/LS bit for PRN test
@@ -112,7 +115,7 @@ architecture comportamental of data_interface is
          stat_p1    : out std_logic_vector(23 downto 0); --plus 1 statistics
          stat_m1    : out std_logic_vector(23 downto 0); --minus 1 statistics
          stat_m3    : out std_logic_vector(23 downto 0); --minus 3 statistics
-         stat_rdy   : out std_logic;  -- statistics done indicator
+         stat_rdy   : out std_logic;  -- statisticsreg42 done indicator
          sdtp0      : out std_logic;  --test point   
          sdtp1      : out std_logic;  --test point
          sdtp2      : out std_logic  --test point
@@ -147,7 +150,7 @@ begin
 
    sum_data_chk_0: sum_data_chk
    port map(
-      Grs        => Grs,
+      Grs        => Grs_stat,
       sum_in     => sum_data_sig_Z1,
       chan       => chan,
       stat_msec  => stat_msec,
