@@ -8,7 +8,7 @@ use IEEE.NUMERIC_STD.ALL;
 --This entity packs the sum data according to the number of channels to be recorded
 --See the ICD with computing for cool graphics showing the details and comments in the
 --code below for additional details
--- # $Id: header_collator.vhd,v 1.4 2014/06/11 19:35:23 rlacasse Exp $
+-- # $Id: header_collator.vhd,v 1.5 2014/07/13 14:39:49 asaez Exp $
 
 entity header_collator is
  port(
@@ -34,7 +34,15 @@ entity header_collator is
      threadID    : in std_logic_vector(9 downto 0);
      stationID   : in std_logic_vector(15 downto 0);
      magicWord   : in std_logic_vector(23 downto 0);
-     statusWord  : in std_logic_vector(31 downto 0); 
+     statusWord0 : in std_logic_vector(31 downto 0); 
+     statusWord1 : in std_logic_vector(31 downto 0); 
+     statusWord2 : in std_logic_vector(31 downto 0); 
+     statusWord3 : in std_logic_vector(31 downto 0); 
+     statusWord4 : in std_logic_vector(31 downto 0); 
+     statusWord5 : in std_logic_vector(31 downto 0); 
+     statusWord6 : in std_logic_vector(31 downto 0); 
+     statusWord7 : in std_logic_vector(31 downto 0); 
+
       
    --data output of collator to header_fifo
      coll_out    : out std_logic_vector(63 downto 0);
@@ -52,6 +60,23 @@ entity header_collator is
 end header_collator;
 
 architecture arch of header_collator is
+
+    component bus_multiplexer
+       port(
+     statusWord0 : in std_logic_vector(31 downto 0); 
+     statusWord1 : in std_logic_vector(31 downto 0); 
+     statusWord2 : in std_logic_vector(31 downto 0); 
+     statusWord3 : in std_logic_vector(31 downto 0); 
+     statusWord4 : in std_logic_vector(31 downto 0); 
+     statusWord5 : in std_logic_vector(31 downto 0); 
+     statusWord6 : in std_logic_vector(31 downto 0); 
+     statusWord7 : in std_logic_vector(31 downto 0); 
+     sel         : in std_logic_vector(2 downto 0);
+     output      : out std_logic_vector(31 downto 0); 
+     clk         : in  std_logic
+       );
+    end component;
+
   --signal definitions
     --the output of the collator
       signal coll_out_sig: std_logic_vector(63 downto 0) := X"1000_2000_3000_0001";
@@ -78,8 +103,30 @@ architecture arch of header_collator is
 	  signal lWord4_register      : std_logic_vector(63 downto 0);
 	  
 	  signal TE_s		 : std_logic;
+      signal statusWord          : std_logic_vector(31 downto 0):= X"4000_0000";
+      signal sel_sig             : std_logic_vector(2 downto 0):= "000";
 
   begin
+
+
+   bus_multiplexer_inst : bus_multiplexer
+  port map (
+	    statusWord0 => statusWord0,
+	    statusWord1 => statusWord1,
+	    statusWord2 => statusWord2,
+	    statusWord3 => statusWord3,
+	    statusWord4 => statusWord4,
+	    statusWord5 => statusWord5,
+	    statusWord6 => statusWord6,
+	    statusWord7 => statusWord7,
+	    sel         => sel_sig,
+	    output      => statusWord,
+	    clk         => C125
+           );
+    --selection of the status word to be sent
+
+    sel_sig <= FrameNum(2 downto 0);
+
     --output of mux
     coll_out <= coll_out_sig;
 	coll_out_c167 <= coll_out_c167_sig;
