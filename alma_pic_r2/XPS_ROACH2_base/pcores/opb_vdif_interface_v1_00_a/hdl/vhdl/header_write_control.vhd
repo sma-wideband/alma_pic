@@ -6,6 +6,8 @@ use IEEE.STD_LOGIC_UNSIGNED.ALL;
 use IEEE.MATH_REAL.ALL;
 -------------------------------------------------------
 
+-- # $Id: header_write_control.vhd,v 1.4 2014/04/03 16:51:20 rlacasse Exp $
+
 --  This component produces a write enable signal for the data fifo.  We need one write enable per octet, since the fifo is 64-bits
 --  wide. Write enable pulses start at with the first 1PPS after the Run signal goes high.  They are modulated by nchan.  For example 
 --  when nchan = 5 (32 channels) the write enable is always high once it starts.  For nchan = 0, (1 channel) it is high every 32
@@ -15,7 +17,7 @@ use IEEE.MATH_REAL.ALL;
 -- Once a "Run" signal arrives the system transmits a whole frame independently of the state of the run signal.
 -- A channel change while transmitting a frame produces a reset.
 
--- # $Id: header_write_control.vhd,v 1.3 2013/04/29 14:41:35 nlasso Exp $ 
+-- # $Id: header_write_control.vhd,v 1.4 2014/04/03 16:51:20 rlacasse Exp $ 
 
 entity header_write_control is
    port(
