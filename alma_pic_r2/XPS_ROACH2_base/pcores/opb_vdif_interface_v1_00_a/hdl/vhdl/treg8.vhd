@@ -6,6 +6,7 @@ use IEEE.STD_LOGIC_UNSIGNED.ALL;
 -------------------------------------------------------
 
 -- this is an 8-bit register with clock enable and clock
+-- $Id: treg8.vhd,v 1.1 2014/08/04 14:37:07 rlacasse Exp $
 
 entity treg8 is
   port(
