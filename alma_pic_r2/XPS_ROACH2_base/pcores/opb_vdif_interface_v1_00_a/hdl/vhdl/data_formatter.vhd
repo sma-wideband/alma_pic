@@ -9,7 +9,7 @@ use IEEE.STD_LOGIC_UNSIGNED.ALL;
 -------------------------------------------------------
 -- This component formats the sum data into a VDIF data frame and sends it to the 10 GbE module
 
--- $Id:  Exp $
+-- $Id: data_formatter.vhd,v 1.2 2014/07/13 14:44:21 asaez Exp $
 
 entity data_formatter is
   port(
@@ -29,7 +29,14 @@ entity data_formatter is
       threadID    : in std_logic_vector(9 downto 0);
       stationID   : in std_logic_vector(15 downto 0);
       magicWord   : in std_logic_vector(23 downto 0);
-      statusWord  : in std_logic_vector(31 downto 0);
+      statusWord0 : in std_logic_vector(31 downto 0);
+      statusWord1 : in std_logic_vector(31 downto 0);
+      statusWord2 : in std_logic_vector(31 downto 0);
+      statusWord3 : in std_logic_vector(31 downto 0);
+      statusWord4 : in std_logic_vector(31 downto 0);
+      statusWord5 : in std_logic_vector(31 downto 0);
+      statusWord6 : in std_logic_vector(31 downto 0);
+      statusWord7 : in std_logic_vector(31 downto 0);
 
    --timing and control signals
       --higher frequency clock for FIFO output, from timing_generator
@@ -83,8 +90,8 @@ entity data_formatter is
    --status signals for C167
    --FHOF              : std_logic; --header fifo overflow, already declared above
    --FDOF              : std_logic; --data fifo overflow, already declared above
-   coll_out_C167     : out std_logic_vector(7 downto 0) --captured header
-
+   coll_out_C167     : out std_logic_vector(7 downto 0); --captured header
+   psn_out     	     : out std_logic_vector(63 downto 0)  --captured PSN
   );
 end data_formatter;
 
@@ -104,7 +111,14 @@ architecture comportamental of data_formatter is
        threadID       : in std_logic_vector(9 downto 0);
        stationID      : in std_logic_vector(15 downto 0);
        magicWord      : in std_logic_vector(23 downto 0);
-       statusWord     : in std_logic_vector(31 downto 0);
+       statusWord0    : in std_logic_vector(31 downto 0); 
+       statusWord1    : in std_logic_vector(31 downto 0); 
+       statusWord2    : in std_logic_vector(31 downto 0); 
+       statusWord3    : in std_logic_vector(31 downto 0); 
+       statusWord4    : in std_logic_vector(31 downto 0); 
+       statusWord5    : in std_logic_vector(31 downto 0); 
+       statusWord6    : in std_logic_vector(31 downto 0); 
+       statusWord7    : in std_logic_vector(31 downto 0); 
        coll_out       : out std_logic_vector(63 downto 0); 
        Hdr_sel        : in std_logic_vector(2 downto 0);
        coll_out_c167  : out std_logic_vector(7 downto 0); 
@@ -229,6 +243,7 @@ begin
   h_rd_en           <= h_rd_en_sig;  
   FHOF              <= FHOF_sig;
   FDOF              <= FDOF_sig;
+  psn_out	    <= PSN_sig;	
 
   header_collator0:  header_collator
     port map(
@@ -244,7 +259,14 @@ begin
       threadID      =>  threadID,
       stationID     =>  stationID,
       magicWord     =>  magicWord,
-      statusWord    =>  statusWord,
+      statusWord0   =>  statusWord0,
+      statusWord1   =>  statusWord1,
+      statusWord2   =>  statusWord2,
+      statusWord3   =>  statusWord3,
+      statusWord4   =>  statusWord4,
+      statusWord5   =>  statusWord5,
+      statusWord6   =>  statusWord6,
+      statusWord7   =>  statusWord7,
       coll_out      =>  coll_out_sig,
       hdr_sel       =>  hdr_sel_sig,
       coll_out_c167 =>  coll_out_c167,
