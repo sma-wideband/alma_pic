@@ -5,7 +5,7 @@ use IEEE.NUMERIC_STD.ALL;
 use IEEE.STD_LOGIC_UNSIGNED.ALL;
 -------------------------------------------------------
 
--- # $Id: channel_demux.vhd,v 1.3 2014/07/13 14:36:38 asaez Exp $
+-- # $Id: channel_demux.vhd,v 1.4 2014/10/10 18:15:53 rlacasse Exp $
 
 --This entity packs the sum data according to the number of channels to be recorded
 --See the ICD with computing for cool graphics showing the details and comments in the
@@ -52,7 +52,9 @@ architecture arch of channel_demux is
    signal dcStateCtr       : std_logic_vector(3 downto 0);  --for debugging
    signal sum_ch_demux_sig : std_logic_vector(63 downto 0);
    signal data_cntr_sig    : std_logic_vector(15 downto 0) := X"0000";
-   signal data_limit_sig   : std_logic_vector(15 downto 0) := X"0000";   
+   signal data_limit_sig   : std_logic_vector(15 downto 0) := X"0000";
+   signal sum_di_sig       : std_logic_vector(63 downto 0) := X"0000_0000_0000_0000";     
+
 
    type data_cntr_state is
    (
@@ -72,16 +74,17 @@ architecture arch of channel_demux is
 
    begin
 
+   sum_di_sig <= sum_di;
 
 
    samples_inputs: for i in 0 to 31 generate
-   begin
+--   begin
 	bits_changer_inst : bits_changer
-	port map (
-	I => sum_di(2*i+1 downto 2*i),
-	O => sum_di_converted_sig(2*i+1 downto 2*i),
+	  port map (
+	    I => sum_di_sig(2*i+1 downto 2*i),
+	    O => sum_di_converted_sig(2*i+1 downto 2*i),
       clk => C125 
-	);
+	  );
    end generate samples_inputs;
 
 
@@ -145,26 +148,26 @@ architecture arch of channel_demux is
                         when others  => data_limit_sig <= b"0000_0000_0000_0011"; --3, for test purposes
                       end case;
                       case(nchan_var) is
-                         when("00101") =>                 --and start collating the data
+                         when("00101") =>                 --and start collating the data:  1 * 64 bits
                             sum_ch_demux_sig <= sum_di_converted_sig;
 
-                         when("00100") =>                 --and start collating the data
+                         when("00100") =>                 --and start collating the data: 2 * 32 bits
                             sum_ch_demux_sig(63 downto 32) <= sum_di_converted_sig(31 downto 0);        --lower 16 channels to high half
                             sum_ch_demux_sig(31 downto 0)  <= sum_ch_demux_sig(63 downto 32); --high half to low half
                             
-                         when("00011") =>                 --and start collating the data
+                         when("00011") =>                 --and start collating the data:  4 * 16 bits
                             sum_ch_demux_sig(63 downto 48) <= sum_di_converted_sig(15 downto 0);        --lower 8 channels to high quarter
                             sum_ch_demux_sig(47 downto 0)  <= sum_ch_demux_sig(63 downto 16); --rest just shifts down
                             
-                         when("00010") =>                 --and start collating the data
+                         when("00010") =>                 --and start collating the data: 8 * 8 bits
                             sum_ch_demux_sig(63 downto 56) <= sum_di_converted_sig(7 downto 0);        --lower 4 channels to high eighth
-                            sum_ch_demux_sig(47 downto 0)  <= sum_ch_demux_sig(63 downto 16); --rest just shifts down   
+                            sum_ch_demux_sig(55 downto 0)  <= sum_ch_demux_sig(63 downto 8); --rest just shifts down   
                             
-                         when("00001") =>                 --and start collating the data
+                         when("00001") =>                 --and start collating the data: 16 * 4 bits
                             sum_ch_demux_sig(63 downto 60) <= sum_di_converted_sig(3 downto 0);        --lower 2 channels to high 16th
                             sum_ch_demux_sig(59 downto 0)  <= sum_ch_demux_sig(63 downto 4); --rest just shifts down       
                             
-                         when("00000") =>                 --and start collating the data
+                         when("00000") =>                 --and start collating the data: 32 * 2 bits
                             sum_ch_demux_sig(63 downto 62) <= sum_di_converted_sig(1 downto 0);        --lower 1 channel to high 32nd
                             sum_ch_demux_sig(61 downto 0)  <= sum_ch_demux_sig(63 downto 2); --rest just shifts 
 
@@ -199,7 +202,7 @@ architecture arch of channel_demux is
                     
                      when("00010") =>                 --and start collating the data
                         sum_ch_demux_sig(63 downto 56) <= sum_di_converted_sig(7 downto 0);        --lower 4 channels to high eighth
-                        sum_ch_demux_sig(47 downto 0)  <= sum_ch_demux_sig(63 downto 16); --rest just shifts down                         
+                        sum_ch_demux_sig(55 downto 0)  <= sum_ch_demux_sig(63 downto 8); --rest just shifts down                         
                     
                      when("00001") =>                 --and start collating the data
                         sum_ch_demux_sig(63 downto 60) <= sum_di_converted_sig(3 downto 0);        --lower 2 channels to high 16th
