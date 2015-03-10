@@ -515,7 +515,7 @@ NET "vdif_PPS_GPS_p"    LOC = "W30"; # GPS 1-PPS input
 NET "vdif_PPS_GPS_n"    LOC = "V30";
 
 
-NET "vdif_sum_data_p<0>" LOC = "B37";  #LSB from plane 0
+NET "vdif_sum_data_p<0>" LOC = "B37";  #LSB from plane 0  SWAPPED!!!
 NET "vdif_sum_data_n<0>" LOC = "A37";
 NET "vdif_sum_data_p<1>" LOC = "B41";  #MSB from plane 0
 NET "vdif_sum_data_n<1>" LOC = "B42"; 
