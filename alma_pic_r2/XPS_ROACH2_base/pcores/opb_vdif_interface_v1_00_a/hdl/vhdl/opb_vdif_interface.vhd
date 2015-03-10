@@ -7,7 +7,7 @@ use work.rdbe_pkg.all;
 Library UNISIM;
 use UNISIM.vcomponents.all;
 
--- # $Id: opb_vdif_interface.vhd,v 1.22 2014/08/28 13:28:00 rlacasse Exp $
+-- # $Id: opb_vdif_interface.vhd,v 1.25 2014/10/15 19:27:38 rlacasse Exp $
 
 entity opb_vdif_interface is
   generic ( 
@@ -20,7 +20,7 @@ entity opb_vdif_interface is
     C_FAMILY : string := "virtex5";
 
     -- other parameters
-    VERSION     : std_logic_vector(7 downto 0) := X"02";  --manually programmed version number
+    VERSION     : std_logic_vector(7 downto 0) := X"05";  --manually programmed version number
     ADDRHI      : std_logic_vector(23 downto 0) := X"000000";
     REG12_LGTH  : integer := 40
    );
@@ -328,7 +328,7 @@ is
     signal c167_reg15_sig     :std_logic_vector(7 downto 0);           --control register 1
     signal c167_reg16_sig     :std_logic_vector(7 downto 0);           --control register 2
     signal c167_reg17_sig     :std_logic_vector(7 downto 0);           --control register 3
-    signal c167_reg18_sig     :std_logic_vector(7 downto 0);           --control register 4
+    signal c167_reg18_sig     :std_logic_vector(7 downto 0);           --for byte 2 of PPS_TE_Off
     signal c167_reg19_sig     :std_logic_vector(7 downto 0);           --control register 5
     signal c167_reg20_sig     :std_logic_vector(7 downto 0);           --control register 6  
 	  --reg21 is a read/write pair to get status data from the accessing the captured 1PPS
@@ -411,6 +411,8 @@ is
     signal TE_Z1_sig            :std_logic := '0';
     signal AUXTIME_sig          :std_logic := '0';    
     signal TIME0_sig            :std_logic := '0';
+    signal TIME0_Z1_sig         :std_logic := '0';    
+    signal TE_Pulse_sig         :std_logic := '0';    
     signal PPS_Maser_sig        :std_logic;  --1-PPS from Maser for sanity check of the locally generated 1-PPS from the TE
     signal PPS_GPS_sig          :std_logic;  --1-PPS from GPS for sanity check of the locally generated 1-PPS from the TE
     signal CFIFO_Z1_sig         :std_logic;  --clock used for formatting at FIFO outputs, input to BUFG
@@ -470,8 +472,6 @@ is
    signal coll_out_C167_sig     : std_logic_vector(7 downto 0);     --8 bits of header captured at TE, for status to C167
    signal To10GbeTxDataValid_sig  : std_logic;                      --data valid to 10 Gbe module and test point from formatter
    signal To10GbeTxEOF_sig      : std_logic;                        --end of frame to 10 Gbe module and test point from formatter   
-       
-    signal frm_sync_sig         : std_logic := '0';
    
     --status signals
     signal DONE_sig             :std_logic := '1';
@@ -538,6 +538,7 @@ is
     signal test_counter			: std_logic_vector(7 downto 0);
 
     signal prn_run_sig   		: std_logic;
+    signal prn_re_seed_sig	: std_logic;    
     signal stat_start_sig 		: std_logic;
     signal stat_rdy_sig			: std_logic;
     signal Grs_stat_sig			: std_logic;
@@ -713,7 +714,7 @@ begin
       stat_m3    => stat_m3_sig, --statistics, +3, 3 bytes max
       stat_rdy   => stat_rdy_sig,    
       td_sel     => td_sel_sig,      
-      frm_sync   => frm_sync_sig,    
+      frm_sync   => TE_Pulse_sig,    
       td_out     => td_out_sig,  
       data_sel   => data_sel_sig,
       sum_di     => DATA2_sig, 
@@ -1082,7 +1083,8 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
        			Grs_sig           	<= c167_reg14_sig(3);    --General reset for all modules except data_formatter
        			Grs_stat_sig	  	<= c167_reg14_sig(2);    --Dedicated reset signal for the "sum_data_chk_0" entity.
        			GrsFm_sig         	<= c167_reg15_sig(3);    --General reset for data_formatter to allow restart independent of data_formatter
-       			prn_run_sig   	  	<= c167_reg15_sig(0);
+       			prn_run_sig   	  	<= c167_reg15_sig(0);    -- this is for the data-checker PRN
+       			prn_re_seed_sig     <= c167_reg15_sig(2);    -- this is for the data-generator PRN
        			stat_start_sig    	<= c167_reg15_sig(1);    -- starts statistics aquisition.
        			kill_enable_from_c167	<= c167_reg14_sig(1);    -- enables the kill feature (zeroing the first data samples to be sent out by the pic)	   	
 		end if;
@@ -1153,6 +1155,12 @@ CLKFBIN => CLKFB_sig -- 1-bit input: Feedback clock input
        c167_reg28_sig <= GPS_Offset_sig(15 downto 8); 
        c167_reg29_sig <= GPS_Offset_sig(23 downto 16);
        c167_reg30_sig <= "0000" & GPS_Offset_sig(27 downto 24);
+
+       c167_reg31_sig <= TE_Offset_sig(7 downto 0);
+       c167_reg32_sig <= TE_Offset_sig(15 downto 8); 
+       c167_reg33_sig <= TE_Offset_sig(23 downto 16);
+       c167_reg18_sig <= "0000" & TE_Offset_sig(27 downto 24);
+
            
        --misc status
        c167_reg3_sig(1) <= LOCKED_sig;
@@ -1242,6 +1250,19 @@ begin
     RunFm_sig <= RunFm_ctrl3_sig;    
   end if;
 end process capture_ctrl;       
+-------------------------
+
+TE_pulse : process (C125)  --capture critical control signals 
+begin
+  if(rising_edge(C125)) then
+    TIME0_Z1_sig <= TIME0_sig;    
+    if (TIME0_sig = '1') AND (TIME0_Z1_sig = '0') AND (prn_re_seed_sig = '1')then 
+      TE_Pulse_sig <= '1';
+    else  
+      TE_Pulse_sig <= '0';
+    end if;
+  end if;
+end process TE_pulse;       
 -------------------------
 
 
@@ -1414,7 +1435,7 @@ end process capture_ctrl;
 			    when X"0F" => c167_reg15_sig  		<= data_from_cpu_sig;
 			    when X"10" => c167_reg16_sig  		<= data_from_cpu_sig;
 			    when X"11" => c167_reg17_sig  		<= data_from_cpu_sig;
-			    when X"12" => c167_reg18_sig  		<= data_from_cpu_sig;
+			    --when X"12" => c167_reg18_sig  		<= data_from_cpu_sig;  now used for TE_Offset MHB
 			    when X"13" => c167_reg19_sig  		<= data_from_cpu_sig;
 			    when X"14" => c167_reg20_sig  		<= data_from_cpu_sig;
 			    when X"15" => c167_reg21_w_sig 		<= data_from_cpu_sig;
@@ -1655,7 +1676,7 @@ end process capture_ctrl;
             data_in(53) => FrameNum_sig(0),
             data_in(54) => TIME0_sig,
             data_in(55) => TIME1_sig,
-            data_in(56) => PPS_PIC_sig,
+            data_in(56) => TE_Pulse_sig,
             data_in(57) => RunFm_sig,  --RunFm, address 0x39
             data_in(58) => PPS_PIC_adv_sig,
             data_in(59) => OneMsec_pic_sig,
