@@ -9,7 +9,7 @@ use IEEE.STD_LOGIC_UNSIGNED.ALL;
 -------------------------------------------------------
 -- This component formats the sum data into a VDIF data frame and sends it to the 10 GbE module
 
--- $Id: data_formatter.vhd,v 1.2 2014/07/13 14:44:21 asaez Exp $
+-- $Id: data_formatter.vhd,v 1.3 2014/10/10 18:17:25 rlacasse Exp $
 
 entity data_formatter is
   port(
@@ -222,6 +222,7 @@ architecture comportamental of data_formatter is
   signal hdr_sel_sig        : std_logic_vector(2 downto 0);   --header select signal for header collator from header write control
   signal PSN_sig            : std_logic_vector(63 downto 0);  --packet serial number from header write control
   signal sum_ch_demux_sig   : std_logic_vector(63 downto 0);  --data ouput of channel demux module
+  signal sum_ch_demux_per_sig   : std_logic_vector(63 downto 0);  --data ouput of channel demux module permuted for what recorder expects
   signal sum_ch_demux_sig2  : std_logic_vector(65 downto 0);  --data ouput of channel demux module
   signal To10GbeTxData_sig  : std_logic_vector(63 downto 0);  --data ouput 10 10 GbE module
 
@@ -235,7 +236,10 @@ begin
   d_fifo_out_sig    <= d_fifo_out_sig2(63 downto 0);
   h_fifo_out_sig    <= h_fifo_out_sig2(63 downto 0);
   coll_out_sig2     <= "00" & coll_out_sig(63 downto 0);  --trick to handle 65-bit wide fifo.
-  sum_ch_demux_sig2 <= "00" & sum_ch_demux_sig(63 downto 0);
+  sum_ch_demux_per_sig <= sum_ch_demux_sig(7 downto 0) & sum_ch_demux_sig(15 downto 8) & sum_ch_demux_sig(23 downto 16)
+                        & sum_ch_demux_sig(31 downto 24) & sum_ch_demux_sig(39 downto 32) & sum_ch_demux_sig(47 downto 40)
+                        & sum_ch_demux_sig(55 downto 48) & sum_ch_demux_sig(63 downto 56);       
+  sum_ch_demux_sig2 <= "00" & sum_ch_demux_per_sig(63 downto 0);
   fdpe              <= fdpe_sig;
   d_wr_en           <= d_wr_en_sig;
   h_wr_en           <= h_wr_en_sig;
@@ -243,7 +247,7 @@ begin
   h_rd_en           <= h_rd_en_sig;  
   FHOF              <= FHOF_sig;
   FDOF              <= FDOF_sig;
-  psn_out	    <= PSN_sig;	
+  psn_out	          <= PSN_sig;	
 
   header_collator0:  header_collator
     port map(
