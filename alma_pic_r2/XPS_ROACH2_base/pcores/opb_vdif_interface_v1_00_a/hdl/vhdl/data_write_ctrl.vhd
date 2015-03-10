@@ -15,7 +15,7 @@ use IEEE.MATH_REAL.ALL;
 -- The write enable signal goes active at the first PPS_PIC after RunFm goes high
 
 
--- # $Id: data_write_ctrl.vhd,v 1.4 2014/04/03 16:39:31 rlacasse Exp $ 
+-- # $Id: data_write_ctrl.vhd,v 1.5 2014/10/10 18:22:05 rlacasse Exp $ 
 
 entity data_write_ctrl is
    port(
@@ -47,6 +47,7 @@ architecture arch of data_write_ctrl is
 
     signal  RunFM_Z1_sig  : std_logic := '0';                        -- to detect rising edge of RunFM
     signal  d_wr_en_sig   : std_logic := '0';                        -- to allow a pipeline delay of the write enable   
+    signal  d_wr_en_sig_Z1   : std_logic := '0';    
     signal  startReq_sig  : std_logic := '0';                        -- to log a start request
     signal  stopReq_sig   : std_logic := '0';                        -- to log a stop request   
     signal  stopped_sig   : std_logic := '0';                        -- to indicate stopped state  
@@ -68,7 +69,8 @@ architecture arch of data_write_ctrl is
 	    if(rising_edge(C125)) then
 	    
 	      RunFM_Z1_sig  <= RunFM;       --to detect rising edge
-	      d_wr_en       <= d_wr_en_sig; --delays output by one clock to match the data
+	      d_wr_en         <= d_wr_en_sig_Z1; --delays output by two clocks to match the data
+	      d_wr_en_sig_Z1  <= d_wr_en_sig; 
 	      
 	      if stopped_sig = '1' then   --stay reset if stopped_sig is low
 		      d_wr_en_sig <= '0';
@@ -124,7 +126,7 @@ architecture arch of data_write_ctrl is
                             
               when "00011" =>
                 if(data_ctr_sig = "00010") then
-                  d_wr_en <= '1';
+                  d_wr_en_sig <= '1';
                 end if;
                 if(data_ctr_sig = "00011") then
                   data_ctr_sig  <= "00000";
@@ -136,8 +138,8 @@ architecture arch of data_write_ctrl is
                   d_wr_en_sig <= '1';
                 end if;
                 if(data_ctr_sig = "00001") then
-                  data_ctr_sig  <= "00000";
-                  d_wr_en_sig   <= '0';
+                  data_ctr_sig  <= "00000"; 
+                  d_wr_en_sig   <= '0';                  
                 end if;
                               
               when "00101" =>
